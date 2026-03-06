@@ -1,0 +1,146 @@
+---
+title: "Command Options"
+description: "Complete reference for all Cubipods CLI command-line options"
+---
+
+## Available Options
+
+Cubipods provides a minimal set of command-line options for executing EVM bytecode.
+
+## Required Options
+
+<ParamField path="bytecode" type="string" required>
+  EVM bytecode to execute, consisting of valid opcodes. Can be provided with or without the `0x` prefix.
+  
+  **Short form:** `-b`  
+  **Long form:** `--bytecode`
+
+  ```bash
+  cubipods --bytecode 6003600201
+  ```
+
+  ```bash
+  cubipods -b 0x6003600201
+  ```
+</ParamField>
+
+## Optional Flags
+
+<ParamField path="verbose" type="boolean" default={false}>
+  Enable verbose mode to display detailed execution information including history, stack, memory, and storage states.
+  
+  **Short form:** `-v`  
+  **Long form:** `--verbose`
+
+  ```bash
+  cubipods --bytecode 6003600201 --verbose
+  ```
+
+  ```bash
+  cubipods -b 6003600201 -v
+  ```
+
+  When enabled, verbose mode outputs:
+  - Execution history with each opcode step
+  - Final stack state
+  - Final memory state
+  - Final storage state
+  - Execution analysis
+</ParamField>
+
+## Built-in Options
+
+<ParamField path="help" type="flag">
+  Display help information about all available options.
+  
+  **Short form:** `-h`  
+  **Long form:** `--help`
+
+  ```bash
+  cubipods --help
+  ```
+</ParamField>
+
+<ParamField path="version" type="flag">
+  Display the current version of Cubipods.
+  
+  **Short form:** `-V`  
+  **Long form:** `--version`
+
+  ```bash
+  cubipods --version
+  ```
+</ParamField>
+
+## Option Examples
+
+### Using Short Forms
+
+All options have short forms for convenience:
+
+```bash
+cubipods -b 6003600201 -v
+```
+
+### Using Long Forms
+
+Long forms are more explicit and readable in scripts:
+
+```bash
+cubipods --bytecode 6003600201 --verbose
+```
+
+### Combining Options
+
+Options can be combined in any order:
+
+```bash
+cubipods --verbose --bytecode 6003600201
+cubipods -v -b 6003600201
+```
+
+<Note>
+The `--bytecode` option is always required, regardless of what other options are specified.
+</Note>
+
+## Bytecode Format
+
+The bytecode argument accepts hexadecimal strings:
+
+- **With prefix**: `0x6003600201`
+- **Without prefix**: `6003600201`
+
+Both formats are equivalent. The `0x` prefix is automatically stripped during parsing.
+
+### Valid Bytecode Examples
+
+```bash
+# Simple arithmetic
+cubipods -b 6003600201
+
+# Memory operations
+cubipods -b 60206040526002600155
+
+# Stack operations
+cubipods -b 600160026003610101
+
+# With 0x prefix
+cubipods -b 0x6020602001
+```
+
+## Error Handling
+
+If invalid options are provided, Cubipods will display an error message:
+
+```bash
+cubipods --invalid-option
+# error: unexpected argument '--invalid-option' found
+```
+
+If the bytecode flag is missing:
+
+```bash
+cubipods
+# error: the following required arguments were not provided:
+#   --bytecode <BYTECODE>
+```

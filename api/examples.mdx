@@ -1,0 +1,586 @@
+---
+title: 'API Examples'
+description: 'Complete examples for common use cases with Cubipods'
+---
+
+This page provides complete, runnable examples demonstrating common use cases with the Cubipods EVM implementation.
+
+## Basic Setup
+
+All examples use the core library API. Add this to your `Cargo.toml`:
+
+```toml
+[dependencies]
+cubipods = "0.1"
+```
+
+<Accordion title="Basic Bytecode Execution">
+
+Execute EVM bytecode and inspect the result:
+
+```rust
+use cubipods::vm::Vm;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Create VM with bytecode: PUSH1 0x20, PUSH1 0x40, ADD
+    let mut vm = Vm::new("0x6020604001", false)?;
+    
+    // Run the bytecode
+    vm.run()?;
+    
+    // Check result on stack (0x20 + 0x40 = 0x60)
+    assert_eq!(vm.stack.peek().unwrap(), "60");
+    assert_eq!(vm.stack.length, 1);
+    
+    println!("Result: 0x{}", vm.stack.peek().unwrap());
+    
+    Ok(())
+}
+```
+
+**What this does:**
+- Pushes `0x20` (32) and `0x40` (64) onto the stack
+- Adds them together
+- Result `0x60` (96) is left on the stack
+
+</Accordion>
+
+<Accordion title="Arithmetic Operations">
+
+Perform various arithmetic operations:
+
+```rust
+use cubipods::vm::Vm;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Addition: 10 + 20 = 30 (0x1e)
+    let mut vm = Vm::new("0x6014600a01", false)?;
+    vm.run()?;
+    assert_eq!(vm.stack.peek().unwrap(), "1e");
+    
+    // Multiplication: 10 * 20 = 200 (0xc8)
+    let mut vm = Vm::new("0x6014600a02", false)?;
+    vm.run()?;
+    assert_eq!(vm.stack.peek().unwrap(), "c8");
+    
+    // Subtraction: 20 - 10 = 10 (0xa)
+    let mut vm = Vm::new("0x600a601403", false)?;
+    vm.run()?;
+    assert_eq!(vm.stack.peek().unwrap(), "a");
+    
+    // Division: 5 / 2 = 2 (integer division)
+    let mut vm = Vm::new("0x6002600504", false)?;
+    vm.run()?;
+    assert_eq!(vm.stack.peek().unwrap(), "2");
+    
+    // Modulo: 5 % 2 = 1
+    let mut vm = Vm::new("0x6002600506", false)?;
+    vm.run()?;
+    assert_eq!(vm.stack.peek().unwrap(), "1");
+    
+    // Exponentiation: 5^2 = 25 (0x19)
+    let mut vm = Vm::new("0x600260050a", false)?;
+    vm.run()?;
+    assert_eq!(vm.stack.peek().unwrap(), "19");
+    
+    println!("All arithmetic operations completed successfully!");
+    
+    Ok(())
+}
+```
+
+</Accordion>
+
+<Accordion title="Comparison and Logic Operations">
+
+Use comparison and bitwise logic operations:
+
+```rust
+use cubipods::vm::Vm;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Less than: 5 < 10 = true (1)
+    let mut vm = Vm::new("0x600a600510", false)?;
+    vm.run()?;
+    assert_eq!(vm.stack.peek().unwrap(), "1");
+    
+    // Greater than: 20 > 10 = true (1)
+    let mut vm = Vm::new("0x600a601411", false)?;
+    vm.run()?;
+    assert_eq!(vm.stack.peek().unwrap(), "1");
+    
+    // Equal: 10 == 10 = true (1)
+    let mut vm = Vm::new("0x600a600a14", false)?;
+    vm.run()?;
+    assert_eq!(vm.stack.peek().unwrap(), "1");
+    
+    // IsZero: 10 == 0 = false (0)
+    let mut vm = Vm::new("0x600a15", false)?;
+    vm.run()?;
+    assert_eq!(vm.stack.peek().unwrap(), "0");
+    
+    // AND: 1 & 1 = 1
+    let mut vm = Vm::new("0x6001600116", false)?;
+    vm.run()?;
+    assert_eq!(vm.stack.peek().unwrap(), "1");
+    
+    // OR: 1 | 0 = 1
+    let mut vm = Vm::new("0x6000600117", false)?;
+    vm.run()?;
+    assert_eq!(vm.stack.peek().unwrap(), "1");
+    
+    // XOR: 1 ^ 1 = 0
+    let mut vm = Vm::new("0x6001600118", false)?;
+    vm.run()?;
+    assert_eq!(vm.stack.peek().unwrap(), "0");
+    
+    println!("All comparison and logic operations completed!");
+    
+    Ok(())
+}
+```
+
+</Accordion>
+
+<Accordion title="Memory Operations">
+
+Store and load data from memory:
+
+```rust
+use cubipods::vm::Vm;
+use cubipods::utils::bytes32::Bytes32;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // MSTORE: Store 0x20 at memory location 0x80
+    // Bytecode: PUSH1 0x20, PUSH1 0x80, MSTORE
+    let mut vm = Vm::new("0x6020608052", false)?;
+    vm.run()?;
+    
+    // Read from memory using mload
+    let data;
+    unsafe {
+        data = vm.memory.mload("80".parse::<Bytes32>()?);
+    }
+    let data_u128: u128 = data.try_into()?;
+    
+    assert_eq!(data_u128, 32);
+    assert_eq!(vm.stack.is_empty(), true);
+    println!("Memory at 0x80: {}", data_u128);
+    
+    // MLOAD: Load data from memory onto stack
+    // First store, then load back
+    let mut vm = Vm::new("0x6020608052608051", false)?;
+    vm.run()?;
+    
+    assert_eq!(vm.stack.peek().unwrap(), "20");
+    println!("Loaded from memory onto stack: 0x{}", vm.stack.peek().unwrap());
+    
+    Ok(())
+}
+```
+
+**Memory Layout:**
+- Memory expands automatically in 32-byte words
+- MSTORE stores 32 bytes at the specified location
+- MLOAD reads 32 bytes from the specified location
+
+</Accordion>
+
+<Accordion title="Storage Operations">
+
+Work with persistent storage:
+
+```rust
+use cubipods::vm::Vm;
+use cubipods::utils::bytes32::Bytes32;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Store "hello" (0x68656c6c6f) in storage slot 1
+    // Bytecode: PUSH5 0x68656c6c6f, PUSH1 0x01, SSTORE
+    let data = "68656c6c6f";
+    let bytecode = format!("0x64{data}600155");
+    
+    let mut vm = Vm::new(&bytecode, false)?;
+    vm.run()?;
+    
+    // Read from storage
+    let result = vm.storage.sload("01".parse::<Bytes32>()?);
+    assert_eq!(data, result.unwrap().parse_and_trim()?);
+    
+    println!("Storage slot 1: {}", result.unwrap().parse_and_trim()?);
+    
+    // Store and load in one execution
+    // PUSH1 0x02, PUSH1 0x01, SSTORE, PUSH1 0x01, SLOAD
+    let mut vm = Vm::new("0x6002600155600154", false)?;
+    vm.run()?;
+    
+    // Value should be on stack
+    assert_eq!(vm.stack.peek().unwrap(), "02");
+    println!("Loaded from storage onto stack: 0x{}", vm.stack.peek().unwrap());
+    
+    Ok(())
+}
+```
+
+**Storage Characteristics:**
+- Key-value store with 32-byte keys and values
+- Persistent across VM execution
+- SSTORE saves to storage, SLOAD retrieves
+
+</Accordion>
+
+<Accordion title="Stack Manipulation">
+
+Manipulate the stack with DUP, SWAP, and POP:
+
+```rust
+use cubipods::vm::Vm;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // POP: Remove top item from stack
+    // Push 0x01, Push 0x02, POP
+    let mut vm = Vm::new("0x6001600250", false)?;
+    vm.run()?;
+    assert_eq!(vm.stack.peek().unwrap(), "01");
+    assert_eq!(vm.stack.length, 1);
+    
+    // DUP1: Duplicate top stack item
+    // Push 0x42, DUP1
+    let mut vm = Vm::new("0x604280", false)?;
+    vm.run()?;
+    assert_eq!(vm.stack.length, 2);
+    assert_eq!(vm.stack.peek().unwrap(), "42");
+    
+    // SWAP: Swap positions in stack
+    // Push 0x01, Push 0x02, Push 0x03, SWAP2
+    // Result: [0x03, 0x02, 0x01] -> [0x01, 0x02, 0x03]
+    let mut vm = Vm::new("0x60016002600391", false)?;
+    vm.run()?;
+    assert_eq!(vm.stack.peek().unwrap(), "01");
+    
+    println!("Stack manipulation completed!");
+    
+    Ok(())
+}
+```
+
+**Stack Operations:**
+- **DUP1-DUP16**: Duplicate the Nth stack item
+- **SWAP1-SWAP16**: Swap the top item with the Nth item
+- **POP**: Remove and discard the top stack item
+
+</Accordion>
+
+<Accordion title="Accessing Stack State After Execution">
+
+Inspect stack contents after running bytecode:
+
+```rust
+use cubipods::vm::Vm;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Execute bytecode: PUSH1 0x20, PUSH1 0x40, ADD
+    let mut vm = Vm::new("0x6020604001", false)?;
+    vm.run()?;
+    
+    // Check if stack is empty
+    println!("Stack empty: {}", vm.stack.is_empty());
+    
+    // Get stack length
+    println!("Stack length: {}", vm.stack.length);
+    
+    // Peek at top of stack (doesn't remove)
+    if let Some(top) = vm.stack.peek() {
+        println!("Top of stack: 0x{}", top);
+    }
+    
+    // Pop value from stack
+    let (index, value) = vm.stack.pop()?;
+    println!("Popped from index {}: 0x{}", index, value);
+    
+    // Stack should now be empty
+    assert!(vm.stack.is_empty());
+    
+    Ok(())
+}
+```
+
+</Accordion>
+
+<Accordion title="Using Verbose Mode">
+
+Enable verbose mode for detailed execution history:
+
+```rust
+use cubipods::vm::Vm;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Create VM with verbose=true
+    let mut vm = Vm::new("0x6020604001", true)?;
+    
+    println!("Verbose mode enabled: {}", vm.verbose);
+    
+    // Run bytecode
+    vm.run()?;
+    
+    // Access execution history
+    println!("History size: {}", vm.history.size());
+    
+    // History tracks:
+    // - Stack operations with indices
+    // - Memory locations accessed
+    // - Storage slots modified
+    
+    // Check memory locations that were accessed
+    if !vm.history.memory_locations.is_empty() {
+        println!("Memory locations accessed:");
+        for location in &vm.history.memory_locations {
+            println!("  0x{}", location.to_string());
+        }
+    }
+    
+    // Check storage slots that were modified
+    if !vm.history.storage_slots.is_empty() {
+        println!("Storage slots modified:");
+        for slot in &vm.history.storage_slots {
+            println!("  Slot 0x{}", slot.to_string());
+        }
+    }
+    
+    Ok(())
+}
+```
+
+**Verbose Mode Benefits:**
+- Detailed execution trace for debugging
+- Track all stack operations with indices
+- Monitor memory and storage access patterns
+- Useful for understanding complex bytecode behavior
+
+</Accordion>
+
+<Accordion title="Error Handling">
+
+Handle common errors gracefully:
+
+```rust
+use cubipods::vm::Vm;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Handle stack underflow
+    let result = Vm::new("0x01", false);  // ADD without enough stack items
+    match result {
+        Ok(mut vm) => {
+            if let Err(e) = vm.run() {
+                println!("Caught error: {}", e);
+                // Error: ShallowStack - not enough items for ADD
+            }
+        }
+        Err(e) => println!("VM creation failed: {}", e),
+    }
+    
+    // Handle invalid bytecode
+    let result = Vm::new("0xZZ", false);
+    match result {
+        Ok(_) => println!("Unexpected success"),
+        Err(e) => println!("Caught invalid bytecode: {}", e),
+    }
+    
+    // Handle stack overflow (>1024 items)
+    let mut push_many = "0x".to_string();
+    for _ in 0..1025 {
+        push_many.push_str("6001");  // PUSH1 0x01
+    }
+    
+    let result = Vm::new(&push_many, false);
+    if let Ok(mut vm) = result {
+        match vm.run() {
+            Ok(_) => println!("Unexpected success"),
+            Err(e) => println!("Caught stack overflow: {}", e),
+        }
+    }
+    
+    // Handle empty stack pop
+    let mut vm = Vm::new("0x50", false)?;  // POP on empty stack
+    match vm.run() {
+        Ok(_) => println!("Unexpected success"),
+        Err(e) => println!("Caught stack underflow: {}", e),
+    }
+    
+    println!("Error handling demonstrated!");
+    
+    Ok(())
+}
+```
+
+**Common Errors:**
+- **StackUnderflow**: Trying to pop from empty stack
+- **StackOverflow**: Exceeding 1024 item limit
+- **ShallowStack**: Insufficient items for operation
+- **InvalidInstruction**: Unknown opcode
+- **InvalidNibble**: Malformed bytecode hex
+
+</Accordion>
+
+<Accordion title="Cryptographic Operations">
+
+Use KECCAK256 for hashing:
+
+```rust
+use cubipods::vm::Vm;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Hash the string "hello"
+    // "hello" in hex: 0x68656c6c6f
+    let data = "68656c6c6f";
+    
+    // Bytecode: PUSH5 0x68656c6c6f, KECCAK256
+    let bytecode = format!("0x64{data}20");
+    let mut vm = Vm::new(&bytecode, false)?;
+    
+    vm.run()?;
+    
+    // Expected result: keccak256("hello")
+    let expected = "1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8";
+    assert_eq!(vm.stack.peek().unwrap(), expected);
+    
+    println!("keccak256('hello') = 0x{}", vm.stack.peek().unwrap());
+    
+    Ok(())
+}
+```
+
+**Note:** You can verify the hash using:
+```bash
+cast keccak hello
+```
+
+</Accordion>
+
+<Accordion title="Complex Example: Complete Smart Contract Logic">
+
+Simulate a complete smart contract execution:
+
+```rust
+use cubipods::vm::Vm;
+use cubipods::utils::bytes32::Bytes32;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Simulates: Store free memory pointer, update storage, verify
+    // 1. PUSH1 0x20 - value to store
+    // 2. PUSH1 0x40 - memory location
+    // 3. MSTORE - store in memory
+    // 4. PUSH1 0x02 - value for storage
+    // 5. PUSH1 0x01 - storage slot
+    // 6. SSTORE - store in storage
+    
+    let bytecode = "0x60206040526002600155";
+    let mut vm = Vm::new(bytecode, true)?;  // verbose mode
+    
+    vm.run()?;
+    
+    // Verify stack is empty after execution
+    assert!(vm.stack.is_empty());
+    println!("Stack empty after execution: {}", vm.stack.is_empty());
+    
+    // Verify memory state
+    unsafe {
+        let mem_data = vm.memory.load_only("40".parse::<Bytes32>()?);
+        let mem_value = mem_data.to_string();
+        assert_eq!(
+            mem_value,
+            "0000000000000000000000000000000000000000000000000000000000000020"
+        );
+        println!("Memory at 0x40: 0x{}", mem_value);
+    }
+    
+    // Verify storage state
+    let storage_data = vm.storage.sload("01".parse::<Bytes32>()?)
+        .unwrap()
+        .to_string();
+    assert_eq!(
+        storage_data,
+        "0000000000000000000000000000000000000000000000000000000000000002"
+    );
+    println!("Storage slot 1: 0x{}", storage_data);
+    
+    // Check execution history
+    println!("Total operations: {}", vm.history.size());
+    println!("Memory locations accessed: {}", vm.history.memory_locations.len());
+    println!("Storage slots modified: {}", vm.history.storage_slots.len());
+    
+    Ok(())
+}
+```
+
+This example demonstrates:
+- Memory pointer initialization
+- Storage updates
+- State verification
+- Execution history tracking
+
+</Accordion>
+
+## Testing Your Code
+
+All examples can be run as unit tests. Here's a complete test module:
+
+```rust
+#[cfg(test)]
+mod tests {
+    use cubipods::vm::Vm;
+    use cubipods::utils::bytes32::Bytes32;
+    use std::error::Error;
+
+    #[test]
+    fn test_basic_execution() -> Result<(), Box<dyn Error>> {
+        let mut vm = Vm::new("0x6020604001", false)?;
+        vm.run()?;
+        assert_eq!(vm.stack.peek().unwrap(), "60");
+        Ok(())
+    }
+
+    #[test]
+    fn test_memory_operations() -> Result<(), Box<dyn Error>> {
+        let mut vm = Vm::new("0x6020608052", false)?;
+        vm.run()?;
+        
+        unsafe {
+            let data = vm.memory.mload("80".parse::<Bytes32>()?);
+            let data_u128: u128 = data.try_into()?;
+            assert_eq!(data_u128, 32);
+        }
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_storage_operations() -> Result<(), Box<dyn Error>> {
+        let mut vm = Vm::new("0x6002600155", false)?;
+        vm.run()?;
+        
+        let result = vm.storage.sload("01".parse::<Bytes32>()?);
+        assert!(result.is_some());
+        
+        Ok(())
+    }
+}
+```
+
+## Next Steps
+
+- [VM Reference](/api/vm) - Detailed VM structure and methods
+- [Stack Operations](/api/stack) - Complete stack manipulation guide
+- [Memory Management](/api/memory) - Memory allocation and access
+- [Storage System](/api/storage) - Persistent storage operations

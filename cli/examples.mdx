@@ -1,0 +1,284 @@
+---
+title: "CLI Examples"
+description: "Real-world examples of using the Cubipods CLI to execute EVM bytecode"
+---
+
+## Quick Start Examples
+
+### Basic Arithmetic
+
+Execute simple arithmetic operations:
+
+```bash
+cubipods -b 6003600201
+```
+
+This bytecode performs: `PUSH1 0x03`, `PUSH1 0x02`, `ADD`
+- Pushes `0x03` onto the stack
+- Pushes `0x02` onto the stack
+- Adds them together (result: `0x05`)
+
+### With Verbose Output
+
+View detailed execution information:
+
+```bash
+cubipods -b 6003600201 -v
+```
+
+Verbose mode shows the step-by-step execution, final stack state, and analysis.
+
+## Category Examples
+
+<AccordionGroup>
+  <Accordion title="Stack Operations">
+    ### Push Operations
+
+    Push multiple values onto the stack:
+
+    ```bash
+    cubipods --bytecode 600160026003610101
+    ```
+
+    This executes:
+    - `PUSH1 0x01` - Push 1
+    - `PUSH1 0x02` - Push 2
+    - `PUSH1 0x03` - Push 3
+    - `PUSH2 0x0101` - Push 257
+
+    Final stack (top to bottom): `0x0101`, `0x03`, `0x02`, `0x01`
+
+    ### Arithmetic with Multiple Values
+
+    ```bash
+    cubipods -b 6020602001 --verbose
+    ```
+
+    This executes:
+    - `PUSH1 0x20` - Push 32
+    - `PUSH1 0x20` - Push 32
+    - `ADD` - Add them (result: 64 or 0x40)
+
+    ### Duplicate Operations
+
+    ```bash
+    cubipods -b 6005806001
+    ```
+
+    This executes:
+    - `PUSH1 0x05` - Push 5
+    - `DUP1` - Duplicate top stack value
+    - `PUSH1 0x01` - Push 1
+  </Accordion>
+
+  <Accordion title="Memory Operations">
+    ### Memory Store
+
+    Store a value in memory:
+
+    ```bash
+    cubipods --bytecode 60206040526002600155
+    ```
+
+    This executes:
+    - `PUSH1 0x20` - Push 32
+    - `PUSH1 0x40` - Push 64 (memory location)
+    - `MSTORE` - Store 32 at memory location 64
+    - `PUSH1 0x02` - Push 2
+    - `PUSH1 0x01` - Push 1 (storage key)
+    - `SSTORE` - Store 2 at storage key 1
+
+    ### Memory Load
+
+    ```bash
+    cubipods -b 6020604052604051 -v
+    ```
+
+    This executes:
+    - `PUSH1 0x20` - Push 32
+    - `PUSH1 0x40` - Push 64
+    - `MSTORE` - Store value
+    - `PUSH1 0x40` - Push 64
+    - `MLOAD` - Load value from memory
+  </Accordion>
+
+  <Accordion title="Storage Operations">
+    ### Storage Write and Read
+
+    ```bash
+    cubipods --bytecode 6002600155600154 --verbose
+    ```
+
+    This executes:
+    - `PUSH1 0x02` - Push 2 (value)
+    - `PUSH1 0x01` - Push 1 (key)
+    - `SSTORE` - Store 2 at key 1
+    - `PUSH1 0x01` - Push 1 (key)
+    - `SLOAD` - Load value from key 1
+
+    Result: Value `0x02` is stored at storage key `0x01` and then loaded back.
+  </Accordion>
+
+  <Accordion title="Logical Operations">
+    ### Comparison Operations
+
+    ```bash
+    cubipods -b 600360021060036002146003600215
+    ```
+
+    This executes multiple comparison operations:
+    - `PUSH1 0x03`, `PUSH1 0x02`, `LT` - Is 2 < 3?
+    - `PUSH1 0x03`, `PUSH1 0x02`, `EQ` - Is 2 == 3?
+    - `PUSH1 0x03`, `PUSH1 0x02`, `ISZERO` - Is 2 zero?
+
+    ### Bitwise Operations
+
+    ```bash
+    cubipods --bytecode 600F600A1660FF600A17600A600319 -v
+    ```
+
+    This executes:
+    - `AND` - Bitwise AND
+    - `OR` - Bitwise OR
+    - `XOR` - Bitwise XOR
+    - `NOT` - Bitwise NOT
+  </Accordion>
+
+  <Accordion title="Complex Bytecode">
+    ### Combined Operations
+
+    Execute a complex sequence with memory and storage:
+
+    ```bash
+    cubipods --bytecode 60206040526002600155604051600154 --verbose
+    ```
+
+    This demonstrates:
+    1. Memory store operation
+    2. Storage store operation
+    3. Memory load operation
+    4. Storage load operation
+
+    ### With Prefix
+
+    Same bytecode with `0x` prefix:
+
+    ```bash
+    cubipods -b 0x806020
+    ```
+
+    This executes:
+    - `DUP1` - Duplicate stack top
+    - `PUSH1 0x20` - Push 32
+
+    ### Verbose Analysis
+
+    ```bash
+    cubipods -b 0x8060206020 --verbose
+    ```
+
+    This provides detailed execution trace showing:
+    - Each opcode executed
+    - Stack state after each operation
+    - Memory modifications
+    - Final state summary
+  </Accordion>
+</AccordionGroup>
+
+## Testing Examples
+
+These examples are used in the Cubipods test suite:
+
+### Test: Basic Execution
+
+```bash
+cubipods --bytecode 0x806020
+```
+
+Verifies basic bytecode parsing and execution without verbose mode.
+
+### Test: Verbose Mode
+
+```bash
+cubipods --bytecode 0x8060206020 --verbose
+```
+
+Verifies verbose flag functionality and detailed output.
+
+### Test: Memory and Storage
+
+```bash
+cubipods --bytecode 0x60206040526002600155
+```
+
+Verifies:
+- Memory store at location `0x40` contains `0x20`
+- Storage at key `0x01` contains `0x02`
+
+### Test: Stack Addition
+
+```bash
+cubipods --bytecode 0x6020602001
+```
+
+Verifies stack peek returns `0x40` (64 in decimal) after adding 32 + 32.
+
+## Script Usage
+
+Use Cubipods in shell scripts:
+
+```bash
+#!/bin/bash
+
+# Execute bytecode and check exit code
+if cubipods -b 6003600201; then
+    echo "Execution successful"
+else
+    echo "Execution failed"
+    exit 1
+fi
+```
+
+### Capture Verbose Output
+
+```bash
+#!/bin/bash
+
+# Capture verbose output
+OUTPUT=$(cubipods -b 6003600201 -v 2>&1)
+echo "$OUTPUT"
+```
+
+## Common Patterns
+
+### Simple Stack Test
+
+```bash
+cubipods -b 6001  # PUSH1 0x01
+```
+
+### Addition Test
+
+```bash
+cubipods -b 6003600201  # Push 3, Push 2, Add
+```
+
+### Memory Test
+
+```bash
+cubipods -b 60AA60BB52  # Store 0xAA at memory 0xBB
+```
+
+### Storage Test
+
+```bash
+cubipods -b 60AA60BB55  # Store 0xAA at storage key 0xBB
+```
+
+<Tip>
+Use the `--verbose` flag when debugging to see exactly how your bytecode executes step by step.
+</Tip>
+
+<Warning>
+Missing the `--bytecode` flag will result in an error. This argument is always required.
+</Warning>

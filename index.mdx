@@ -1,97 +1,109 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Cubipods"
+description: "A minimal Ethereum Virtual Machine (EVM) implemented in Rust"
 ---
 
-## Setting up
+<div style={{
+  background: 'linear-gradient(135deg, #0a0e1a 0%, #242b2c 100%)',
+  padding: '4rem 2rem',
+  borderRadius: '12px',
+  border: '1px solid rgba(106, 90, 205, 0.3)',
+  marginBottom: '2rem'
+}}>
+  <div style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
+    <h1 style={{ 
+      fontSize: '3rem', 
+      fontWeight: '700', 
+      marginBottom: '1.5rem',
+      background: 'linear-gradient(135deg, #ffffff 0%, #a0a0a0 100%)',
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
+      backgroundClip: 'text'
+    }}>
+      Minimal EVM in Rust
+    </h1>
+    <p style={{ 
+      fontSize: '1.25rem', 
+      color: '#a0a0a0',
+      marginBottom: '2rem',
+      lineHeight: '1.6'
+    }}>
+      Execute Ethereum bytecode with a lightweight, efficient virtual machine. 
+      Support for 40+ opcodes, stack operations, memory management, and cryptographic functions.
+    </p>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+## Get Started
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+Jump right in and start executing EVM bytecode.
 
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install Cubipods via cargo in seconds
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Run your first bytecode execution
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="CLI Reference" icon="terminal" href="/cli/usage">
+    Explore command-line options
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Use Cubipods as a library
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Key Features
 
-Everything you need to create world-class documentation.
+Everything you need to work with EVM bytecode.
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+<CardGroup cols={2}>
+  <Card title="40+ Opcodes" icon="microchip">
+    Support for arithmetic, comparison, bitwise, stack, memory, storage, and crypto operations
   </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
+  <Card title="Stack Management" icon="layer-group">
+    Full EVM-compliant stack with 1024-element limit
   </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
+  <Card title="Memory Operations" icon="memory">
+    MLOAD and MSTORE with automatic memory expansion
   </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+  <Card title="Storage" icon="database">
+    Persistent storage operations with SLOAD and SSTORE
   </Card>
-</Columns>
+  <Card title="Verbose Mode" icon="list-check">
+    Detailed execution history and debugging output
+  </Card>
+  <Card title="Library API" icon="book-open">
+    Programmatic access to VM, Stack, Memory, and Storage
+  </Card>
+</CardGroup>
 
-## Need inspiration?
+## Core Concepts
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<CardGroup cols={3}>
+  <Card title="EVM Basics" icon="book" href="/concepts/evm-basics">
+    Understand how the EVM works
+  </Card>
+  <Card title="Bytecode Format" icon="binary" href="/concepts/bytecode">
+    Learn about bytecode structure
+  </Card>
+  <Card title="Execution Model" icon="gears" href="/concepts/execution-model">
+    Explore the execution flow
+  </Card>
+</CardGroup>
+
+## Example
+
+Execute a simple addition operation:
+
+```bash
+cubipods -b 6003600201
+```
+
+This bytecode pushes `0x03` and `0x02` onto the stack, then adds them together.
+
+Enable verbose mode to see execution details:
+
+```bash
+cubipods -b 6003600201 -v
+```

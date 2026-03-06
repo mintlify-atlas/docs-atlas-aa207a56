@@ -1,0 +1,214 @@
+---
+title: "Cryptographic Opcodes"
+description: "Cryptographic hash functions in Cubipods"
+---
+
+Cubipods implements cryptographic opcodes for hashing operations. These are essential for many blockchain operations including address derivation, signature verification, and data integrity.
+
+## Supported Opcodes
+
+| Opcode | Hex | Stack Input | Stack Output | Description |
+|--------|-----|-------------|--------------|-------------|
+| KECCAK256 | 0x20 | data | hash | Keccak-256 hash of data |
+
+## KECCAK256 (0x20)
+
+Computes the Keccak-256 hash of input data. Keccak-256 is the hash function used throughout Ethereum for various purposes.
+
+**Stack Input:**
+- `data`: The input data to hash (as a 32-byte value)
+
+**Stack Output:**
+- `hash`: The 32-byte Keccak-256 hash
+
+### What is Keccak-256?
+
+Keccak-256 is a cryptographic hash function that:
+
+- **Produces fixed output**: Always returns a 32-byte (256-bit) hash
+- **Deterministic**: Same input always produces same output
+- **One-way**: Cannot reverse the hash to get original data
+- **Collision resistant**: Nearly impossible to find two inputs with same hash
+- **Avalanche effect**: Small change in input drastically changes output
+
+### Example
+
+```
+Bytecode: 0x6468656c6c6f20
+Breakdown:
+  64 - PUSH5 (push 5 bytes)
+  68656c6c6f - "hello" in hex
+  20 - KECCAK256
+
+Result: 0x1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8
+```
+
+From the test suite (vm.rs:628-649):
+```rust
+// Keccaks word "hello"
+// Result must be 1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8
+// Verified using: cast keccak hello
+
+let data = "68656c6c6f";  // "hello" in hex
+let bytecode = format!("64{data}20");
+
+assert_eq!(
+    vm.stack.peek().unwrap(),
+    "1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8"
+);
+```
+
+You can verify this hash using the foundry cast tool:
+```bash
+cast keccak hello
+# Output: 0x1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8
+```
+
+## Implementation
+
+The KECCAK256 opcode is implemented in `src/vm.rs:255-277` using the `tiny_keccak` crate:
+
+```rust
+InstructionType::KECCAK256 => {
+    let item_1 = *build_initials()?.downcast::<Bytes32>().unwrap();
+    
+    // NOTE: need to trim leading zeroes for keccak operation
+    let mut data: Vec<u8> = vec![];
+    for &byte in item_1.0.iter() {
+        if byte != 0 || !data.is_empty() {
+            data.push(byte);
+        }
+    }
+    
+    let mut result = [0u8; 32];
+    let mut keccak = Keccak::v256();
+    keccak.update(&data);
+    keccak.finalize(&mut result);
+    
+    let mut hex_result = String::with_capacity(result.len() * 2);
+    for byte in &result {
+        write!(&mut hex_result, "{:02x}", byte)?;
+    }
+    
+    self.stack.push(hex_result)?
+}
+```
+
+### Key Implementation Details
+
+1. **Leading zero trimming**: The implementation removes leading zeros from the input before hashing
+2. **Byte conversion**: Input is converted from Bytes32 to a byte vector
+3. **Hex encoding**: Output hash is converted to hexadecimal string
+4. **tiny_keccak library**: Uses the standard Keccak implementation
+
+## Common Use Cases
+
+### 1. Data Integrity
+
+Hash data to create a unique fingerprint:
+```
+64cafebabe20  PUSH5 0xcafebabe, KECCAK256
+```
+
+### 2. Unique Identifiers
+
+Generate unique IDs from input data:
+```
+// Hash user input to create unique ID
+PUSH input_data
+KECCAK256
+```
+
+### 3. Storage Key Generation
+
+Create storage keys for mappings (similar to Solidity):
+```
+// mapping(address => uint256)
+// Key = keccak256(address, slot)
+PUSH address
+PUSH slot
+KECCAK256  // Generates unique storage key
+```
+
+### 4. Signature Verification
+
+Hash messages before signature verification:
+```
+PUSH message
+KECCAK256  // Hash message
+// ... verify signature against hash
+```
+
+## Properties of Keccak-256
+
+<Note>
+**Important properties:**
+
+- **Output size**: Always 32 bytes (64 hex characters)
+- **Input size**: Can hash any size data (in EVM, limited by stack)
+- **Speed**: Relatively fast hash function
+- **Security**: Cryptographically secure, no known practical attacks
+</Note>
+
+## Keccak vs SHA-3
+
+<Warning>
+Keccak-256 is **not** the same as SHA-3-256!
+
+- **Keccak-256**: Original Keccak algorithm (used in Ethereum)
+- **SHA-3-256**: Final NIST standard (slightly different padding)
+
+Always use Keccak-256 for Ethereum compatibility.
+</Warning>
+
+## Examples with Different Inputs
+
+**Empty input:**
+```
+Input:  0x00
+Hash:   0xbc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a
+```
+
+**Single byte:**
+```
+Input:  0x01
+Hash:   0x5fe7f977e71dba2ea1a68e21057beebb9be2ac30c6410aa38d4f3fbe41dcffd2
+```
+
+**String "hello":**
+```
+Input:  0x68656c6c6f
+Hash:   0x1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8
+```
+
+## Testing Your Hashes
+
+Verify your Keccak-256 hashes using these tools:
+
+**Foundry Cast:**
+```bash
+cast keccak "hello"
+cast keccak "0x1234"
+```
+
+**Online tools:**
+- [emn178 Keccak](https://emn178.github.io/online-tools/keccak_256.html)
+- [Ethereum Hash Tools](https://etherchain.org/tools/hash)
+
+## Best Practices
+
+1. **Use for uniqueness**: Hash data to create unique identifiers
+2. **Don't hash sensitive data alone**: Add salt when hashing passwords or secrets
+3. **Consistent encoding**: Always encode data the same way before hashing
+4. **Verify externally**: Test hashes with external tools during development
+5. **Mind the input**: Leading zeros are trimmed in Cubipods implementation
+
+## Real-World Applications
+
+Keccak-256 is used throughout Ethereum for:
+
+- **Contract addresses**: `keccak256(rlp([sender, nonce]))[12:]`
+- **Function selectors**: `keccak256("transfer(address,uint256)")[0:4]`
+- **Event signatures**: `keccak256("Transfer(address,address,uint256)")`
+- **Storage keys**: `keccak256(abi.encodePacked(key, slot))`
+- **Message hashing**: Before ECDSA signature verification

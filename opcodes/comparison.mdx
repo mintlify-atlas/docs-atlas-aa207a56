@@ -1,0 +1,151 @@
+---
+title: "Comparison Opcodes"
+description: "Comparison and equality operations in Cubipods"
+---
+
+Comparison opcodes perform logical comparisons between values on the stack. They return 1 (true) or 0 (false).
+
+## Supported Opcodes
+
+| Opcode | Hex | Stack Input | Stack Output | Description |
+|--------|-----|-------------|--------------|-------------|
+| LT | 0x10 | a, b | a < b | Less than comparison |
+| GT | 0x11 | a, b | a > b | Greater than comparison |
+| EQ | 0x14 | a, b | a == b | Equality comparison |
+| ISZERO | 0x15 | a | a == 0 | Check if value is zero |
+
+## LT (0x10)
+
+Compares if the second stack value is less than the first.
+
+**Example:**
+```
+Bytecode: 0x600a600510
+Breakdown:
+  600a - PUSH1 0x0a (10 in decimal)
+  6005 - PUSH1 0x05 (5 in decimal)
+  10   - LT
+
+Result: 0x01 (true, 5 < 10)
+```
+
+From the test suite (vm.rs:510-521):
+```rust
+// 5 < 10 = true which is 1 in hex
+let bytecode = "600a600510";
+assert_eq!(vm.stack.peek().unwrap(), "1");
+```
+
+## GT (0x11)
+
+Compares if the second stack value is greater than the first.
+
+**Example:**
+```
+Bytecode: 0x600a601411
+Breakdown:
+  600a - PUSH1 0x0a (10 in decimal)
+  6014 - PUSH1 0x14 (20 in decimal)
+  11   - GT
+
+Result: 0x01 (true, 20 > 10)
+```
+
+From the test suite (vm.rs:523-534):
+```rust
+// 20 > 10 = true which is 1 in hex
+let bytecode = "600a601411";
+assert_eq!(vm.stack.peek().unwrap(), "1");
+```
+
+## EQ (0x14)
+
+Compares if two values are equal.
+
+**Example:**
+```
+Bytecode: 0x600a600a14
+Breakdown:
+  600a - PUSH1 0x0a (10 in decimal)
+  600a - PUSH1 0x0a (10 in decimal)
+  14   - EQ
+
+Result: 0x01 (true, 10 == 10)
+```
+
+From the test suite (vm.rs:536-547):
+```rust
+// 10 == 10 = true which is 1 in hex
+let bytecode = "600a600a14";
+assert_eq!(vm.stack.peek().unwrap(), "1");
+```
+
+## ISZERO (0x15)
+
+Checks if a value is zero. This is a unary operation that only consumes one stack item.
+
+**Example:**
+```
+Bytecode: 0x600a15
+Breakdown:
+  600a - PUSH1 0x0a (10 in decimal)
+  15   - ISZERO
+
+Result: 0x00 (false, 10 != 0)
+```
+
+From the test suite (vm.rs:549-560):
+```rust
+// 10 == 0 = false which is 0 in hex
+let bytecode = "600a15";
+assert_eq!(vm.stack.peek().unwrap(), "0");
+```
+
+## Implementation
+
+Comparison operations are implemented in `src/vm.rs:188-214`. They:
+
+1. Pop one or two values from the stack
+2. Perform the comparison using Rust's comparison operators
+3. Push 1 (true) or 0 (false) onto the stack
+
+```rust
+InstructionType::LT => {
+    let (item_1, item_2) = *build_initials()?.downcast::<(Bytes32, Bytes32)>().unwrap();
+    let result = item_1 < item_2;
+    self.stack.push(format!("{:x}", result as u128))?
+}
+
+InstructionType::ISZERO => {
+    let item_1 = *build_initials()?.downcast::<Bytes32>().unwrap();
+    let result = item_1 == Bytes32::from(0);
+    self.stack.push(format!("{:x}", result as u128))?
+}
+```
+
+## Return Values
+
+<Note>
+All comparison opcodes return:
+- `0x01` (or just `1`) for true
+- `0x00` (or just `0`) for false
+</Note>
+
+## Common Patterns
+
+Comparison opcodes are often used for:
+- **Conditional logic**: Check conditions before executing code paths
+- **Input validation**: Verify values meet requirements
+- **Loop counters**: Compare iteration counters with limits
+
+**Example - Check if value is non-zero:**
+```
+Bytecode: 0x600a15  // PUSH1 10, ISZERO
+Result: 0 (false)
+```
+
+**Example - Check equality:**
+```
+Bytecode: 0x6005600514  // PUSH1 5, PUSH1 5, EQ
+Result: 1 (true)
+```

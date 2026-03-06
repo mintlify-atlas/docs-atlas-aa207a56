@@ -1,0 +1,238 @@
+---
+title: Getting Started with the API
+description: Learn how to use Cubipods as a Rust library in your projects
+---
+
+This guide shows you how to integrate Cubipods into your Rust project and execute EVM bytecode programmatically.
+
+## Installation
+
+<Steps>
+  <Step title="Add Cubipods to your Cargo.toml">
+    Add the dependency to your project:
+
+    ```toml Cargo.toml
+    [dependencies]
+    cubipods = "0.1.1"
+    ```
+  </Step>
+
+  <Step title="Import the VM module">
+    Import the necessary types in your Rust code:
+
+    ```rust
+    use cubipods::vm::Vm;
+    use std::error::Error;
+    ```
+  </Step>
+
+  <Step title="Create and run a VM instance">
+    Instantiate a VM with bytecode and execute it:
+
+    ```rust
+    fn main() -> Result<(), Box<dyn Error>> {
+        // Create VM with bytecode (0x prefix optional)
+        let mut vm = Vm::new("0x6020602001", false)?;
+        
+        // Execute the bytecode
+        vm.run()?;
+        
+        // Access the results
+        println!("Stack top: {}", vm.stack.peek().unwrap());
+        
+        Ok(())
+    }
+    ```
+  </Step>
+</Steps>
+
+## Complete Example: Arithmetic Operations
+
+This example demonstrates basic arithmetic operations (based on test from `tests/integration_test.rs:50`):
+
+```rust
+use cubipods::vm::Vm;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Bytecode: PUSH1 0x20, PUSH1 0x20, ADD
+    // Pushes 32 (0x20) twice, then adds them = 64 (0x40)
+    let mut vm = Vm::new("0x6020602001", false)?;
+    
+    vm.run()?;
+    
+    // Check the result on the stack
+    assert_eq!(vm.stack.peek().unwrap(), "40");
+    println!("Result: 0x{}", vm.stack.peek().unwrap());
+    
+    Ok(())
+}
+```
+
+## Working with Memory
+
+Example showing memory operations (based on test from `tests/integration_test.rs:24`):
+
+```rust
+use cubipods::vm::Vm;
+use cubipods::utils::bytes32::Bytes32;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Bytecode: PUSH1 0x20, PUSH1 0x40, MSTORE
+    // Stores value 0x20 at memory location 0x40
+    let bytecode = "0x60206040526002600155";
+    let mut vm = Vm::new(bytecode, false)?;
+    
+    vm.run()?;
+    
+    // Read from memory
+    unsafe {
+        let data = vm.memory.load_only("40".parse::<Bytes32>()?).to_string();
+        assert_eq!(
+            data,
+            "0000000000000000000000000000000000000000000000000000000000000020"
+        );
+        println!("Memory at 0x40: {}", data);
+    }
+    
+    Ok(())
+}
+```
+
+## Working with Storage
+
+Example showing persistent storage operations (also from `tests/integration_test.rs:24`):
+
+```rust
+use cubipods::vm::Vm;
+use cubipods::utils::bytes32::Bytes32;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Bytecode includes: PUSH1 0x02, PUSH1 0x01, SSTORE
+    // Stores value 0x02 in storage slot 0x01
+    let bytecode = "0x60206040526002600155";
+    let mut vm = Vm::new(bytecode, false)?;
+    
+    vm.run()?;
+    
+    // Read from storage
+    let data = vm
+        .storage
+        .sload("01".parse::<Bytes32>()?)
+        .unwrap()
+        .to_string();
+    
+    assert_eq!(
+        data,
+        "0000000000000000000000000000000000000000000000000000000000000002"
+    );
+    println!("Storage slot 0x01: {}", data);
+    
+    Ok(())
+}
+```
+
+## Verbose Mode
+
+Enable verbose mode to track execution history:
+
+```rust
+use cubipods::vm::Vm;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // Create VM with verbose mode enabled (second parameter)
+    let mut vm = Vm::new("0x6020602001", true)?;
+    
+    vm.run()?;
+    
+    // The history is tracked in vm.history
+    println!("History size: {}", vm.history.size());
+    
+    Ok(())
+}
+```
+
+## Checking Execution State
+
+Access VM state after execution:
+
+```rust
+use cubipods::vm::Vm;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let mut vm = Vm::new("0x600100", false)?; // PUSH1 0x01, STOP
+    
+    vm.run()?;
+    
+    // Check various state
+    println!("Stack is empty: {}", vm.stack.is_empty());
+    println!("Stack length: {}", vm.stack.length);
+    println!("Memory size: {}", vm.memory.msize());
+    println!("Storage size: {}", vm.storage.size());
+    
+    if !vm.stack.is_empty() {
+        println!("Top of stack: 0x{}", vm.stack.peek().unwrap());
+    }
+    
+    Ok(())
+}
+```
+
+## Error Handling
+
+The VM operations return `Result<(), Box<dyn Error>>` for proper error handling:
+
+```rust
+use cubipods::vm::Vm;
+use std::error::Error;
+
+fn execute_bytecode(bytecode: &str) -> Result<String, Box<dyn Error>> {
+    let mut vm = Vm::new(bytecode, false)?;
+    vm.run()?;
+    
+    if vm.stack.is_empty() {
+        Ok("Stack is empty".to_string())
+    } else {
+        Ok(format!("0x{}", vm.stack.peek().unwrap()))
+    }
+}
+
+fn main() {
+    match execute_bytecode("0x6020602001") {
+        Ok(result) => println!("Result: {}", result),
+        Err(e) => eprintln!("Error: {}", e),
+    }
+}
+```
+
+## Using Bytes32
+
+The `Bytes32` type is used throughout for EVM 32-byte values:
+
+```rust
+use cubipods::utils::bytes32::Bytes32;
+use std::str::FromStr;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Parse from hex string
+    let value = Bytes32::from_str("ff")?;
+    
+    // Create from integer
+    let value2 = Bytes32::from(255);
+    
+    // Convert to string
+    println!("Value: {}", value.to_string());
+    
+    Ok(())
+}
+```
+
+## Next Steps
+
+- Explore the [Opcode Reference](/opcodes/arithmetic) to understand supported operations
+- Check the [source code](https://github.com/icanvardar/cubipods) for more examples
+- Review the unit tests in `src/vm.rs` and integration tests in `tests/integration_test.rs` for additional usage patterns

@@ -1,0 +1,80 @@
+---
+title: "Opcodes Overview"
+description: "Complete reference of EVM opcodes supported by Cubipods"
+---
+
+Cubipods implements a subset of Ethereum Virtual Machine (EVM) opcodes. These opcodes are the fundamental instructions that make up EVM bytecode and define how smart contracts execute.
+
+## What are Opcodes?
+
+Opcodes (operation codes) are single-byte instructions that the EVM executes. Each opcode performs a specific operation such as arithmetic, logic, stack manipulation, memory/storage access, or cryptographic operations.
+
+In bytecode, opcodes appear as two-digit hexadecimal values (e.g., `0x01` for ADD, `0x60` for PUSH1). Some opcodes, like PUSH, take additional bytes as operands.
+
+## Categories
+
+Opcodes are organized into the following categories:
+
+- **[Arithmetic](/opcodes/arithmetic)** - Mathematical operations (ADD, MUL, SUB, DIV, MOD, EXP)
+- **[Comparison](/opcodes/comparison)** - Comparison and equality operations (LT, GT, EQ, ISZERO)
+- **[Bitwise](/opcodes/bitwise)** - Bitwise logical operations (AND, OR, XOR, NOT, BYTE)
+- **[Stack](/opcodes/stack)** - Stack manipulation (POP, PUSH, DUP, SWAP)
+- **[Memory](/opcodes/memory)** - Memory operations (MLOAD, MSTORE)
+- **[Storage](/opcodes/storage)** - Persistent storage operations (SLOAD, SSTORE)
+- **[Cryptographic](/opcodes/crypto)** - Hash functions (KECCAK256)
+
+## Supported Opcodes
+
+Here is the complete list of opcodes currently supported by Cubipods:
+
+| Opcode | Hex | Category | Description |
+|--------|-----|----------|-------------|
+| STOP | 0x00 | Control | Halts execution |
+| ADD | 0x01 | Arithmetic | Addition |
+| MUL | 0x02 | Arithmetic | Multiplication |
+| SUB | 0x03 | Arithmetic | Subtraction |
+| DIV | 0x04 | Arithmetic | Integer division |
+| MOD | 0x06 | Arithmetic | Modulo operation |
+| EXP | 0x0a | Arithmetic | Exponentiation |
+| LT | 0x10 | Comparison | Less than |
+| GT | 0x11 | Comparison | Greater than |
+| EQ | 0x14 | Comparison | Equality |
+| ISZERO | 0x15 | Comparison | Is zero |
+| AND | 0x16 | Bitwise | Bitwise AND |
+| OR | 0x17 | Bitwise | Bitwise OR |
+| XOR | 0x18 | Bitwise | Bitwise XOR |
+| NOT | 0x19 | Bitwise | Bitwise NOT |
+| BYTE | 0x1a | Bitwise | Extract byte |
+| KECCAK256 | 0x20 | Crypto | Keccak-256 hash |
+| POP | 0x50 | Stack | Remove top item |
+| MLOAD | 0x51 | Memory | Load from memory |
+| MSTORE | 0x52 | Memory | Store to memory |
+| SLOAD | 0x54 | Storage | Load from storage |
+| SSTORE | 0x55 | Storage | Store to storage |
+| PUSH0-PUSH32 | 0x5f-0x7f | Stack | Push N bytes onto stack |
+| DUP1-DUP16 | 0x80-0x8f | Stack | Duplicate stack item |
+| SWAP1-SWAP16 | 0x90-0x9f | Stack | Swap stack items |
+
+## Implementation Reference
+
+All opcode implementations can be found in the source code:
+
+- Opcode definitions: `src/instruction.rs:11-37`
+- Opcode execution: `src/vm.rs:144-343`
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Arithmetic Opcodes" icon="calculator" href="/opcodes/arithmetic">
+    Learn about mathematical operations
+  </Card>
+  <Card title="Stack Opcodes" icon="layer-group" href="/opcodes/stack">
+    Understand stack manipulation
+  </Card>
+  <Card title="Memory Opcodes" icon="memory" href="/opcodes/memory">
+    Work with volatile memory
+  </Card>
+  <Card title="Storage Opcodes" icon="database" href="/opcodes/storage">
+    Manage persistent storage
+  </Card>
+</CardGroup>

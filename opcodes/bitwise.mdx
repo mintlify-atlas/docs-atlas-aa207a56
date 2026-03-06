@@ -1,0 +1,184 @@
+---
+title: "Bitwise Opcodes"
+description: "Bitwise logical operations in Cubipods"
+---
+
+Bitwise opcodes perform bit-level logical operations on values from the stack. These operations work on the binary representation of 256-bit unsigned integers.
+
+## Supported Opcodes
+
+| Opcode | Hex | Stack Input | Stack Output | Description |
+|--------|-----|-------------|--------------|-------------|
+| AND | 0x16 | a, b | a & b | Bitwise AND |
+| OR | 0x17 | a, b | a \| b | Bitwise OR |
+| XOR | 0x18 | a, b | a ^ b | Bitwise XOR |
+| NOT | 0x19 | a | ~a | Bitwise NOT (complement) |
+| BYTE | 0x1a | i, x | byte | Extract byte at position i |
+
+## AND (0x16)
+
+Performs a bitwise AND operation. Each bit in the result is 1 only if both corresponding bits are 1.
+
+**Example:**
+```
+Bytecode: 0x6001600116
+Breakdown:
+  6001 - PUSH1 0x01 (binary: 0001)
+  6001 - PUSH1 0x01 (binary: 0001)
+  16   - AND
+
+Result: 0x01 (binary: 0001)
+```
+
+From the test suite (vm.rs:562-573):
+```rust
+// 1 & 1 = 1
+let bytecode = "6001600116";
+assert_eq!(vm.stack.peek().unwrap(), "1");
+```
+
+## OR (0x17)
+
+Performs a bitwise OR operation. Each bit in the result is 1 if either corresponding bit is 1.
+
+**Example:**
+```
+Bytecode: 0x6000600117
+Breakdown:
+  6000 - PUSH1 0x00 (binary: 0000)
+  6001 - PUSH1 0x01 (binary: 0001)
+  17   - OR
+
+Result: 0x01 (binary: 0001)
+```
+
+From the test suite (vm.rs:575-586):
+```rust
+// 1 | 0 = 1
+let bytecode = "6000600117";
+assert_eq!(vm.stack.peek().unwrap(), "1");
+```
+
+## XOR (0x18)
+
+Performs a bitwise XOR (exclusive OR) operation. Each bit in the result is 1 if the corresponding bits are different.
+
+**Example:**
+```
+Bytecode: 0x6001600118
+Breakdown:
+  6001 - PUSH1 0x01 (binary: 0001)
+  6001 - PUSH1 0x01 (binary: 0001)
+  18   - XOR
+
+Result: 0x00 (binary: 0000, bits are same)
+```
+
+From the test suite (vm.rs:588-599):
+```rust
+// 1 ^ 1 = 0
+let bytecode = "6001600118";
+assert_eq!(vm.stack.peek().unwrap(), "0");
+```
+
+## NOT (0x19)
+
+Performs a bitwise NOT operation (complement). Flips all bits in the value.
+
+**Example:**
+```
+Bytecode: 0x600019
+Breakdown:
+  6000 - PUSH1 0x00 (all zeros)
+  19   - NOT
+
+Result: 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+        (all ones, 256 bits)
+```
+
+From the test suite (vm.rs:601-612):
+```rust
+// !0 = [f; 32] which is ff..ff in hex
+let bytecode = "600019";
+assert_eq!(vm.stack.peek().unwrap(), "1");  // Trimmed result
+```
+
+<Note>
+The NOT opcode flips all 256 bits. When displayed, leading zeros are often trimmed.
+</Note>
+
+## BYTE (0x1a)
+
+Extracts a single byte from a value at a specified position. Position 0 is the most significant byte.
+
+**Example:**
+```
+Bytecode: 0x60ff601f1a
+Breakdown:
+  60ff - PUSH1 0xff (255 in decimal)
+  601f - PUSH1 0x1f (31 in decimal, the last byte position)
+  1a   - BYTE
+
+Result: 0xff (extracts byte at position 31)
+```
+
+From the test suite (vm.rs:614-626):
+```rust
+// Pushes 0xff to the stack and extracts its 31st byte
+let bytecode = "60ff601f1a";
+assert_eq!(vm.stack.peek().unwrap(), "ff");
+```
+
+## Implementation
+
+Bitwise operations are implemented in `src/vm.rs:215-254` using Rust's bitwise operators:
+
+```rust
+InstructionType::AND => {
+    let (item_1, item_2) = *build_initials()?.downcast::<(Bytes32, Bytes32)>().unwrap();
+    let result = item_1 & item_2;
+    self.stack.push(result.parse_and_trim()?)?
+}
+
+InstructionType::NOT => {
+    let item_1 = *build_initials()?.downcast::<Bytes32>().unwrap();
+    let result = !item_1;
+    self.stack.push(result.parse_and_trim()?)?
+}
+
+InstructionType::BYTE => {
+    let (item_1, item_2) = *build_initials()?.downcast::<(Bytes32, Bytes32)>().unwrap();
+    
+    let result = if item_1 < Bytes32::from(32) {
+        (item_2 >> (Bytes32::from(8) * (Bytes32::from(31) - item_1)))
+            & Bytes32::from(0xFF)
+    } else {
+        Bytes32::from(0)
+    };
+    
+    self.stack.push(result.parse_and_trim()?)?
+}
+```
+
+## Common Use Cases
+
+**Masking**: Use AND to isolate specific bits
+```
+0x0F & 0xFF = 0x0F  // Keeps only lower 4 bits
+```
+
+**Setting bits**: Use OR to set specific bits to 1
+```
+0x00 | 0x0F = 0x0F  // Sets lower 4 bits
+```
+
+**Toggling bits**: Use XOR to flip specific bits
+```
+0x0F ^ 0xFF = 0xF0  // Flips all bits
+```
+
+**Extracting bytes**: Use BYTE to get specific bytes from a word
+```
+BYTE 31 0xAABBCCDD = 0xDD  // Gets rightmost byte
+BYTE 0  0xAABBCCDD = 0xAA  // Gets leftmost byte
+```

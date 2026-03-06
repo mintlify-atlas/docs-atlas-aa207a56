@@ -1,0 +1,98 @@
+---
+title: "CLI Usage"
+description: "Learn how to use the Cubipods command-line interface to execute EVM bytecode"
+---
+
+## Basic Command Structure
+
+The Cubipods CLI follows a simple command structure:
+
+```bash
+cubipods --bytecode <BYTECODE> [OPTIONS]
+```
+
+All commands require the `--bytecode` flag to specify the EVM bytecode to execute.
+
+## Running Bytecode
+
+To execute EVM bytecode, use the `-b` or `--bytecode` flag:
+
+```bash
+cubipods --bytecode 6003600201
+```
+
+The bytecode can optionally include the `0x` prefix:
+
+```bash
+cubipods --bytecode 0x6003600201
+```
+
+Both formats are accepted and produce identical results.
+
+## Verbose Mode
+
+Enable verbose output to see detailed execution information:
+
+```bash
+cubipods --bytecode 6003600201 --verbose
+```
+
+Verbose mode displays:
+- Execution history with each opcode step
+- Final stack state
+- Final memory state
+- Final storage state
+- Execution analysis and statistics
+
+## Exit Codes
+
+The Cubipods CLI uses standard exit codes:
+
+| Exit Code | Description |
+|-----------|-------------|
+| `0` | Successful execution |
+| Non-zero | Error occurred (e.g., invalid bytecode, execution failure) |
+
+## Output Format
+
+### Standard Output
+
+By default (without `--verbose`), Cubipods executes the bytecode and returns silently on success. The final state can be inspected programmatically through the VM.
+
+### Verbose Output
+
+With the `--verbose` flag enabled, Cubipods provides detailed output including:
+
+- **Execution History**: Step-by-step trace of opcode execution
+- **Stack State**: Contents of the stack after execution
+- **Memory State**: Memory contents after execution
+- **Storage State**: Storage values after execution
+- **Analysis**: Execution statistics and insights
+
+<Note>
+Verbose mode is particularly useful for debugging bytecode or understanding execution flow.
+</Note>
+
+## Required Arguments
+
+The `--bytecode` argument is **required** for all commands. Running Cubipods without this flag will result in an error:
+
+```bash
+cubipods
+# Error: the following required arguments were not provided:
+#   --bytecode <BYTECODE>
+```
+
+## Getting Help
+
+View all available options and help information:
+
+```bash
+cubipods --help
+```
+
+Check the version:
+
+```bash
+cubipods --version
+```

@@ -1,0 +1,203 @@
+---
+title: "Lexer"
+description: "Bytecode parser that reads and tokenizes EVM bytecode"
+---
+
+The `Lexer` struct tokenizes EVM bytecode into individual bytes for execution. It handles bytecode parsing, validation, and character-by-character traversal.
+
+## Structure
+
+```rust
+pub struct Lexer<'a> {
+    pub bytecode: &'a str,
+    pub position: u64,
+    pub read_position: u64,
+    pub ch: char,
+}
+```
+
+### Fields
+
+- **bytecode**: The hex string of bytecode (without "0x" prefix)
+- **position**: Current character position being processed
+- **read_position**: Next character position to be read
+- **ch**: Current character being examined
+
+## Methods
+
+### new()
+
+Creates a new lexer instance from a bytecode string.
+
+<ParamField path="bytecode" type="&str" required>
+  The bytecode string (with or without "0x" prefix)
+</ParamField>
+
+<ResponseField name="Result" type="Result<Lexer, LexerError>">
+  Returns a new lexer instance or LexerError::UnableToCreateLexer if invalid
+</ResponseField>
+
+```rust
+let bytecode = "0x6080";
+let lexer = Lexer::new(bytecode)?;
+assert_eq!(lexer.bytecode, "6080");
+```
+
+### read_char()
+
+Reads the next character from the bytecode and advances the position.
+
+```rust
+let bytecode = "0x608060";
+let mut lexer = Lexer::new(bytecode)?;
+lexer.read_char();
+assert_eq!(lexer.ch, '6');
+```
+
+### next_byte()
+
+Reads and returns the next byte (two hex characters) from the bytecode.
+
+<ResponseField name="Result" type="Result<String, Box<dyn Error>>">
+  Returns the next byte as a hex string or an error if invalid
+</ResponseField>
+
+```rust
+let bytecode = "0x608011fa";
+let mut lexer = Lexer::new(bytecode)?;
+lexer.read_char();
+
+assert_eq!(lexer.next_byte()?, "60");
+assert_eq!(lexer.next_byte()?, "80");
+assert_eq!(lexer.next_byte()?, "11");
+assert_eq!(lexer.next_byte()?, "fa");
+```
+
+## Usage Examples
+
+### Parsing Bytecode with Prefix
+
+The lexer automatically strips the "0x" prefix:
+
+```rust
+let bytecode = "0x12ffcb";
+let lexer = Lexer::new(bytecode)?;
+assert_eq!(lexer.bytecode, "12ffcb");
+```
+
+### Iterating Through Bytes
+
+```rust
+let bytecode = "0x608011facddb";
+let expected_bytes = vec!["60", "80", "11", "fa", "cd", "db"];
+
+let mut lexer = Lexer::new(bytecode)?;
+lexer.read_char();
+
+let mut index = 0;
+while lexer.ch != '\0' {
+    let byte = lexer.next_byte()?;
+    assert_eq!(byte, expected_bytes[index]);
+    index += 1;
+}
+```
+
+### Character-by-Character Reading
+
+```rust
+let bytecode = "0x11ffcdaa";
+let expected_chars = vec!['1', '1', 'f', 'f', 'c', 'd', 'a', 'a'];
+
+let mut lexer = Lexer::new(bytecode)?;
+lexer.read_char();
+
+let mut index = 0;
+while lexer.ch != '\0' {
+    assert_eq!(lexer.ch, expected_chars[index]);
+    lexer.read_char();
+    index += 1;
+}
+```
+
+## Error Handling
+
+The lexer validates bytecode and returns specific errors:
+
+### Whitespace in Bytecode
+
+```rust
+let bytecode = "0x60 80";
+let mut lexer = Lexer::new(bytecode)?;
+lexer.read_char();
+lexer.next_byte()?; // First byte OK
+
+let result = lexer.next_byte();
+assert!(matches!(result, Err(e) 
+    if e.downcast_ref::<LexerError>() == Some(&LexerError::HasWhitespace)));
+```
+
+### Empty Character
+
+```rust
+let bytecode = "0x1"; // Only one nibble
+let mut lexer = Lexer::new(bytecode)?;
+
+let result = lexer.next_byte();
+assert!(matches!(result, Err(e) 
+    if e.downcast_ref::<LexerError>() == Some(&LexerError::EmptyChar)));
+```
+
+### Invalid Hex Characters
+
+```rust
+let bytecode = "0xzz"; // Non-hex characters
+let mut lexer = Lexer::new(bytecode)?;
+lexer.read_char();
+
+let result = lexer.next_byte();
+assert!(matches!(result, Err(e) 
+    if e.downcast_ref::<LexerError>() == Some(&LexerError::InvalidNibble)));
+```
+
+## Lexer Errors
+
+The lexer can return the following errors:
+
+- **UnableToCreateLexer**: Failed to strip "0x" prefix or invalid input
+- **HasWhitespace**: Bytecode contains whitespace characters
+- **EmptyChar**: Encountered null character (bytecode too short)
+- **InvalidNibble**: Non-hexadecimal character in bytecode
+
+## Integration with VM
+
+The lexer is used internally by the VM to parse bytecode:
+
+```rust
+let vm = Vm::new("0x600160020101", false)?;
+// VM automatically creates a lexer and parses the bytecode
+```
+
+During execution, the VM calls:
+1. `lexer.read_char()` to initialize
+2. `lexer.next_byte()` repeatedly to fetch opcodes and operands
+3. Handles multi-byte instructions like PUSH
+
+## Bytecode Format
+
+The lexer expects:
+- **Valid hex characters**: 0-9, a-f, A-F
+- **Even length**: Each byte is two hex characters
+- **Optional prefix**: "0x" is automatically removed
+- **No whitespace**: Spaces, tabs, newlines are invalid
+
+```rust
+// Valid bytecode examples
+Lexer::new("0x6080")       // With prefix
+Lexer::new("6080")         // Without prefix
+Lexer::new("0x600160020101") // Multiple instructions
+
+// Invalid bytecode examples
+Lexer::new("0x60 80")      // Contains whitespace
+Lexer::new("0x608")        // Odd length
+Lexer::new("0xGG")         // Non-hex characters
+```

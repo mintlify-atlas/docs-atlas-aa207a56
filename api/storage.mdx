@@ -1,0 +1,188 @@
+---
+title: "Storage"
+description: "EVM persistent storage using a key-value HashMap"
+---
+
+The `Storage` struct implements EVM persistent storage as a key-value store using a HashMap. It maps 32-byte keys (slots) to 32-byte values.
+
+## Structure
+
+```rust
+pub struct Storage {
+    storage: HashMap<Bytes32, Bytes32>,
+}
+```
+
+## Methods
+
+### new()
+
+Creates a new empty storage instance.
+
+<ResponseField name="Storage" type="Storage">
+  Returns a new storage instance with no entries
+</ResponseField>
+
+```rust
+let storage = Storage::new();
+assert_eq!(storage.is_empty(), true);
+```
+
+### sstore()
+
+Stores a 32-byte value at the specified storage slot.
+
+<ParamField path="slot" type="Bytes32" required>
+  The storage slot (key) to store the value at
+</ParamField>
+
+<ParamField path="value" type="Bytes32" required>
+  The 32-byte value to store
+</ParamField>
+
+```rust
+let mut storage = Storage::new();
+let slot = Bytes32::from(1);
+let value = "68656c6c6f".parse::<Bytes32>()?; // "hello" in hex
+
+storage.sstore(slot, value);
+```
+
+### sload()
+
+Loads a value from the specified storage slot.
+
+<ParamField path="slot" type="Bytes32" required>
+  The storage slot (key) to load from
+</ParamField>
+
+<ResponseField name="Option" type="Option<&Bytes32>">
+  Returns Some(&value) if the slot exists, None otherwise
+</ResponseField>
+
+```rust
+let mut storage = Storage::new();
+let slot = Bytes32::from(1);
+let value = "68656c6c6f".parse::<Bytes32>()?;
+
+storage.sstore(slot, value);
+let result = storage.sload(slot);
+assert_eq!(result, Some(&value));
+```
+
+### size()
+
+Returns the number of storage slots currently in use.
+
+<ResponseField name="usize" type="usize">
+  The number of key-value pairs in storage
+</ResponseField>
+
+```rust
+let mut storage = Storage::new();
+assert_eq!(storage.size(), 0);
+
+storage.sstore(Bytes32::from(1), Bytes32::from(100));
+assert_eq!(storage.size(), 1);
+```
+
+### is_empty()
+
+Checks if the storage has no entries.
+
+<ResponseField name="bool" type="bool">
+  Returns true if storage contains no key-value pairs
+</ResponseField>
+
+```rust
+let storage = Storage::new();
+assert!(storage.is_empty());
+```
+
+## Usage Examples
+
+### Storing and Loading Data
+
+```rust
+let mut storage = Storage::new();
+let slot = Bytes32::from(1);
+let value = "68656c6c6f".parse::<Bytes32>()?; // "hello" in hex
+
+storage.sstore(slot, value);
+let result = storage.sload(slot);
+assert_eq!(result, Some(&value));
+```
+
+### Multiple Storage Slots
+
+```rust
+let mut storage = Storage::new();
+
+// Store multiple values
+storage.sstore(Bytes32::from(0), Bytes32::from(100));
+storage.sstore(Bytes32::from(1), Bytes32::from(200));
+storage.sstore(Bytes32::from(2), Bytes32::from(300));
+
+assert_eq!(storage.size(), 3);
+assert_eq!(storage.sload(Bytes32::from(1)), Some(&Bytes32::from(200)));
+```
+
+### Loading Non-Existent Slots
+
+Loading from a slot that hasn't been written to returns `None`:
+
+```rust
+let storage = Storage::new();
+let result = storage.sload(Bytes32::from(99));
+assert_eq!(result, None);
+```
+
+### Overwriting Values
+
+Storing to the same slot overwrites the previous value:
+
+```rust
+let mut storage = Storage::new();
+let slot = Bytes32::from(1);
+
+storage.sstore(slot, Bytes32::from(100));
+assert_eq!(storage.sload(slot), Some(&Bytes32::from(100)));
+
+storage.sstore(slot, Bytes32::from(200));
+assert_eq!(storage.sload(slot), Some(&Bytes32::from(200)));
+assert_eq!(storage.size(), 1); // Still only 1 slot
+```
+
+### Storage in the VM
+
+Example of storage usage in the VM context:
+
+```rust
+// SSTORE: Save "hello" (0x68656c6c6f) in slot 1
+let data = "68656c6c6f";
+let bytecode = format!("64{data}600155");
+
+let mut vm = Vm::new(&bytecode, false)?;
+vm.run()?;
+
+let result = vm.storage.sload("01".parse::<Bytes32>()?);
+assert_eq!(result.unwrap().to_string(), data);
+```
+
+## Key-Value Store Properties
+
+- **Keys**: 32-byte values (Bytes32)
+- **Values**: 32-byte values (Bytes32)
+- **Implementation**: HashMap for O(1) average-case lookups
+- **Persistence**: Storage persists for the lifetime of the VM instance
+- **Size**: No hard limit (bounded by available memory)
+
+## Differences from Memory
+
+| Feature | Storage | Memory |
+|---------|---------|--------|
+| Structure | HashMap | Vec&lt;u8&gt; |
+| Access | Slot-based | Offset-based |
+| Persistence | Per VM instance | Per VM instance |
+| Safety | Safe | Unsafe |
+| Expansion | Automatic | Automatic |

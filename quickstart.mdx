@@ -1,80 +1,236 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Execute your first EVM bytecode with Cubipods"
 ---
 
-## Get started in three steps
+## Your First Bytecode Execution
 
-Get your documentation site running locally and make your first customization.
+This guide will walk you through executing your first EVM bytecode using Cubipods.
 
-### Step 1: Set up your local environment
+<Steps>
+  <Step title="Execute a simple addition">
+    Let's start with a basic arithmetic operation - adding two numbers:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```bash
+    cubipods -b 6003600201
+    ```
 
-### Step 2: Deploy your changes
+    **What this does:**
+    - `60 03` - PUSH1 0x03 (pushes 3 onto the stack)
+    - `60 02` - PUSH1 0x02 (pushes 2 onto the stack)
+    - `01` - ADD (pops the top two values, adds them, pushes result)
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    The bytecode executes successfully, leaving `0x05` on the stack.
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    <Note>
+    The `-b` flag is short for `--bytecode`. Both forms are supported.
+    </Note>
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Enable verbose mode">
+    To see what's happening during execution, add the `-v` (verbose) flag:
 
-### Step 3: Go live
+    ```bash
+    cubipods -b 6003600201 -v
+    ```
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    This displays detailed execution history including:
+    - Each opcode executed
+    - Stack state changes
+    - Memory modifications
+    - Storage operations
 
-## Next steps
+    <Tip>
+    Verbose mode is invaluable for debugging and understanding how opcodes modify EVM state.
+    </Tip>
+  </Step>
 
-Now that you have your docs running, explore these key features:
+  <Step title="Try more complex operations">
+    Now let's try a more complex example with multiple operations:
+
+    ```bash
+    cubipods -b 6020600a60140101 -v
+    ```
+
+    **Breakdown:**
+    - `60 20` - PUSH1 0x20 (pushes 32)
+    - `60 0a` - PUSH1 0x0a (pushes 10)
+    - `60 14` - PUSH1 0x14 (pushes 20)
+    - `01` - ADD (10 + 20 = 30)
+    - `01` - ADD (32 + 30 = 62, which is 0x3e in hex)
+
+    Final stack contains: `0x3e`
+  </Step>
+</Steps>
+
+## Common Operations
+
+Here are some common bytecode patterns you can try:
+
+<CodeGroup>
+
+```bash Multiplication
+# 10 * 20 = 200 (0xc8)
+cubipods -b 6014600a02
+```
+
+```bash Subtraction  
+# 20 - 10 = 10 (0xa)
+cubipods -b 600a601403
+```
+
+```bash Division
+# 5 / 2 = 2 (integer division)
+cubipods -b 6002600504
+```
+
+```bash Exponentiation
+# 5^2 = 25 (0x19)
+cubipods -b 600260050a
+```
+
+</CodeGroup>
+
+## Working with Memory
+
+Cubipods supports EVM memory operations:
+
+```bash
+# Store 0x20 (32) at memory location 0x80
+cubipods -b 6020608052 -v
+```
+
+**Breakdown:**
+- `60 20` - PUSH1 0x20 (value to store: 32)
+- `60 80` - PUSH1 0x80 (memory location: 128)
+- `52` - MSTORE (stores value at memory location)
+
+With verbose mode, you'll see the memory state after execution.
+
+## Working with Storage
+
+Storage operations persist data in slots:
+
+```bash
+# Store "hello" (0x68656c6c6f) in storage slot 1
+cubipods -b 6468656c6c6f600155 -v
+```
+
+**Breakdown:**
+- `64 68656c6c6f` - PUSH5 0x68656c6c6f ("hello" in hex)
+- `60 01` - PUSH1 0x01 (storage slot 1)
+- `55` - SSTORE (stores value in slot)
+
+Verbose mode shows the storage slot and value.
+
+## Stack Operations
+
+<CodeGroup>
+
+```bash DUP (Duplicate)
+# Duplicate the top stack item
+cubipods -b 600180 -v
+# PUSH1 0x01, DUP1
+```
+
+```bash SWAP (Swap)
+# Swap top two stack items
+# Stack: [1, 2, 3] -> [3, 2, 1]
+cubipods -b 60016002600391 -v
+# PUSH1 0x01, PUSH1 0x02, PUSH1 0x03, SWAP2
+```
+
+```bash POP (Remove)
+# Push two values, then pop the top one
+cubipods -b 6001600250 -v
+# PUSH1 0x01, PUSH1 0x02, POP
+# Final stack: [0x01]
+```
+
+</CodeGroup>
+
+## Cryptographic Operations
+
+Cubipods supports the KECCAK256 opcode:
+
+```bash
+# Hash the word "hello"
+cubipods -b 6468656c6c6f20 -v
+```
+
+**Breakdown:**
+- `64 68656c6c6f` - PUSH5 0x68656c6c6f ("hello" in hex)
+- `20` - KECCAK256 (hashes the value)
+
+Result: `0x1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8`
+
+<Tip>
+You can verify this hash using the command: `cast keccak hello`
+</Tip>
+
+## Command-Line Options
+
+Cubipods supports the following CLI options:
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--bytecode <BYTECODE>` | `-b` | Bytecode consisting of EVM opcodes to execute (required) |
+| `--verbose` | `-v` | Enable verbose mode with execution history and state output |
+| `--version` | | Display the version number |
+| `--help` | `-h` | Display help information |
+
+## Understanding Verbose Output
+
+When you run with `-v`, Cubipods shows:
+
+1. **Execution History**: Each opcode executed in sequence
+2. **Stack Changes**: How each operation modifies the stack
+3. **Memory State**: Memory locations and their values
+4. **Storage State**: Storage slots and their values
+
+This makes it easy to understand exactly how your bytecode executes.
+
+<Warning>
+Bytecode without a `STOP` (0x00) opcode will execute until all opcodes are processed. Malformed bytecode may result in errors.
+</Warning>
+
+## Tips for Writing Bytecode
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Omit 0x prefix" icon="hashtag">
+    You can write bytecode with or without the `0x` prefix:
+    - `cubipods -b 6001` ✓
+    - `cubipods -b 0x6001` ✓
+  </Card>
+  
+  <Card title="Use verbose mode" icon="eye">
+    Always use `-v` when debugging or learning - it shows exactly what's happening
+  </Card>
+  
+  <Card title="Start simple" icon="seedling">
+    Begin with simple operations like PUSH and ADD, then build up to more complex bytecode
+  </Card>
+  
+  <Card title="Check the stack" icon="layer-group">
+    Remember the EVM is a stack machine - operations pop from and push to the stack
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Next Steps
+
+Now that you've executed your first bytecode, explore more advanced topics:
+
+<CardGroup cols={2}>
+  <Card title="CLI Reference" icon="terminal" href="/cli/usage">
+    Complete reference for all command-line options
+  </Card>
+  <Card title="Supported Opcodes" icon="list" href="/opcodes/overview">
+    Full list of supported EVM opcodes and their behavior
+  </Card>
+  <Card title="Core Concepts" icon="book" href="/concepts/evm-basics">
+    Understand stack, memory, and storage in depth
+  </Card>
+  <Card title="Examples" icon="code" href="/api/examples">
+    More complex bytecode examples and use cases
+  </Card>
+</CardGroup>

@@ -1,0 +1,169 @@
+---
+title: "EVM Basics"
+description: "Understanding the Ethereum Virtual Machine and how Cubipods implements it"
+---
+
+## What is the EVM?
+
+The **Ethereum Virtual Machine (EVM)** is a computation engine that executes smart contracts on the Ethereum blockchain. It's a stack-based virtual machine that processes bytecode instructions (opcodes) to perform operations on data.
+
+<Note>
+Cubipods implements a minimal but functional subset of the EVM, focusing on core operations needed to understand and test EVM bytecode.
+</Note>
+
+## Stack-Based Architecture
+
+The EVM uses a **stack-based architecture** rather than a register-based one. This means:
+
+- Operations work with values on a stack (Last-In-First-Out data structure)
+- Most opcodes pop operands from the stack and push results back
+- The stack has a maximum depth of **1024 elements**
+
+### Stack Example
+
+```
+Initial stack: []
+
+PUSH1 0x05   →  Stack: [0x05]
+PUSH1 0x03   →  Stack: [0x05, 0x03]
+ADD          →  Stack: [0x08]  (pops 0x05 and 0x03, pushes result)
+```
+
+## Core Components
+
+Cubipods implements the essential EVM components:
+
+<CardGroup cols={2}>
+  <Card title="Stack" icon="layer-group">
+    1024-element stack for temporary values and computation
+  </Card>
+  <Card title="Memory" icon="memory">
+    Volatile byte-addressable memory that expands as needed
+  </Card>
+  <Card title="Storage" icon="database">
+    Persistent key-value storage using 32-byte slots
+  </Card>
+  <Card title="Bytecode" icon="binary">
+    Hexadecimal sequence of opcodes and their operands
+  </Card>
+</CardGroup>
+
+## How Cubipods Implements the EVM
+
+### 1. Lexical Analysis
+
+The [`Lexer`](/api/lexer) tokenizes bytecode into individual bytes:
+
+```rust
+// From src/lexer.rs:14-27
+pub fn new(bytecode: &'a str) -> Result<Lexer<'a>, LexerError> {
+    let bytecode = if bytecode.starts_with("0x") {
+        match bytecode.strip_prefix("0x") {
+            Some(result) => result.trim(),
+            None => return Err(LexerError::UnableToCreateLexer),
+        }
+    } else {
+        bytecode
+    };
+
+    Ok(Self {
+        bytecode,
+        ..Default::default()
+    })
+}
+```
+
+### 2. Instruction Decoding
+
+Each byte pair is converted to an `InstructionType`:
+
+```rust
+// From src/instruction.rs:39-80
+impl FromStr for InstructionType {
+    type Err = InstructionError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let tmp = u128::from_str_radix(s, 16).unwrap();
+        match tmp {
+            0x00 => Ok(InstructionType::STOP),
+            0x01 => Ok(InstructionType::ADD),
+            0x02 => Ok(InstructionType::MUL),
+            // ... more opcodes
+        }
+    }
+}
+```
+
+### 3. Execution Loop
+
+The VM executes instructions sequentially:
+
+```rust
+// From src/vm.rs:37-348
+pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
+    self.lexer.read_char();
+
+    'main: while self.lexer.ch != '\0' {
+        let instruction = self.lexer.next_byte()?;
+        let instruction = InstructionType::from_str(&instruction)?;
+
+        match instruction {
+            InstructionType::STOP => break 'main,
+            InstructionType::ADD => {
+                // Pop two values, add them, push result
+            }
+            // ... handle other opcodes
+        }
+    }
+
+    Ok(())
+}
+```
+
+## Key Differences from Full EVM
+
+Cubipods is a **minimal implementation** for learning and testing:
+
+| Feature | Full EVM | Cubipods |
+|---------|----------|----------|
+| Opcodes | 140+ | 40+ core opcodes |
+| Gas | Full gas metering | No gas tracking |
+| Context | Account state, block info | Standalone execution |
+| Precompiles | 9 precompiled contracts | None |
+| Purpose | Production blockchain | Education & testing |
+
+<Info>
+Cubipods focuses on correctness of core operations rather than production features like gas optimization or account management.
+</Info>
+
+## Word Size
+
+The EVM uses **256-bit (32-byte) words** for all stack operations:
+
+- All integers are 256 bits
+- Memory is byte-addressable but operations work with 32-byte chunks
+- Storage slots are 32-byte keys and values
+
+Cubipods implements this with the `Bytes32` type:
+
+```rust
+// From src/utils/bytes32.rs
+pub struct Bytes32(pub [u8; 32]);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Bytecode Format" icon="binary" href="/concepts/bytecode">
+    Learn how to read and write EVM bytecode
+  </Card>
+  <Card title="Execution Model" icon="gears" href="/concepts/execution-model">
+    Understand how bytecode is executed
+  </Card>
+  <Card title="Supported Opcodes" icon="microchip" href="/opcodes/overview">
+    Explore all supported operations
+  </Card>
+  <Card title="Try It Out" icon="rocket" href="/quickstart">
+    Execute your first bytecode
+  </Card>
+</CardGroup>

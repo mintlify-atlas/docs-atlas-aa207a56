@@ -1,0 +1,116 @@
+---
+title: "Vm"
+description: "The main virtual machine that executes EVM bytecode"
+---
+
+The `Vm` struct is the core execution engine for Cubipods. It manages the stack, memory, storage, and lexer to execute EVM bytecode instructions.
+
+## Structure
+
+```rust
+pub struct Vm<'a> {
+    pub stack: Stack<String>,
+    pub lexer: Lexer<'a>,
+    pub memory: Memory,
+    pub storage: Storage,
+    pub history: History,
+    pub verbose: bool,
+}
+```
+
+## Methods
+
+### new()
+
+Creates a new VM instance with the given bytecode.
+
+<ParamField path="bytecode" type="&str" required>
+  The bytecode string to execute (with or without "0x" prefix)
+</ParamField>
+
+<ParamField path="verbose" type="bool" required>
+  Whether to enable verbose logging and history tracking
+</ParamField>
+
+<ResponseField name="Result" type="Result<Vm, Box<dyn Error>>">
+  Returns a new VM instance or an error if bytecode is invalid
+</ResponseField>
+
+```rust
+let vm = Vm::new("0x600160020101", false)?;
+```
+
+### run()
+
+Executes the bytecode loaded in the VM.
+
+<ResponseField name="Result" type="Result<(), Box<dyn Error>>">
+  Returns Ok(()) on successful execution or an error if execution fails
+</ResponseField>
+
+```rust
+let mut vm = Vm::new("0x600160020101", false)?;
+vm.run()?;
+```
+
+## Usage Examples
+
+### Basic Arithmetic
+
+```rust
+// ADD: 10 + 20 = 30 (0x1e in hex)
+let bytecode = "6014600a01";
+let mut vm = Vm::new(&bytecode, false)?;
+vm.run()?;
+assert_eq!(vm.stack.peek().unwrap(), "1e");
+```
+
+### Memory Operations
+
+```rust
+// MSTORE: Store 0x20 at memory location 0x80
+let bytecode = "6020608052";
+let mut vm = Vm::new(&bytecode, false)?;
+vm.run()?;
+
+let data = unsafe { vm.memory.mload("80".parse::<Bytes32>()?) };
+assert_eq!(data, Bytes32::from(32));
+```
+
+### Storage Operations
+
+```rust
+// SSTORE: Save "hello" (0x68656c6c6f) in slot 1
+let data = "68656c6c6f";
+let bytecode = format!("64{data}600155");
+let mut vm = Vm::new(&bytecode, false)?;
+vm.run()?;
+
+let result = vm.storage.sload("01".parse::<Bytes32>()?);
+assert_eq!(result.unwrap().to_string(), data);
+```
+
+### Stack Manipulation
+
+```rust
+// SWAP: Swap 3rd item with 1st item
+// Stack before: [1, 2, 3]
+// Stack after: [3, 2, 1]
+let bytecode = "60016002600391";
+let mut vm = Vm::new(&bytecode, false)?;
+vm.run()?;
+assert_eq!(vm.stack.peek().unwrap(), "01");
+```
+
+## Supported Opcodes
+
+The VM supports the following EVM opcodes:
+
+- **Arithmetic**: ADD, MUL, SUB, DIV, MOD, EXP
+- **Comparison**: LT, GT, EQ, ISZERO
+- **Bitwise**: AND, OR, XOR, NOT, BYTE
+- **Cryptographic**: KECCAK256
+- **Stack**: PUSH, POP, DUP, SWAP
+- **Memory**: MLOAD, MSTORE
+- **Storage**: SLOAD, SSTORE
+- **Control**: STOP

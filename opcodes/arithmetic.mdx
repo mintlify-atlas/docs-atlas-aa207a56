@@ -1,0 +1,177 @@
+---
+title: "Arithmetic Opcodes"
+description: "Mathematical operations supported in Cubipods"
+---
+
+Arithmetic opcodes perform basic mathematical operations on values from the stack. All operations work with 256-bit unsigned integers (Bytes32).
+
+## Supported Opcodes
+
+| Opcode | Hex | Stack Input | Stack Output | Description |
+|--------|-----|-------------|--------------|-------------|
+| ADD | 0x01 | a, b | a + b | Addition |
+| MUL | 0x02 | a, b | a * b | Multiplication |
+| SUB | 0x03 | a, b | a - b | Subtraction |
+| DIV | 0x04 | a, b | a / b | Integer division (rounded down) |
+| MOD | 0x06 | a, b | a % b | Modulo (remainder) |
+| EXP | 0x0a | a, b | a ** b | Exponentiation |
+
+## ADD (0x01)
+
+Adds the top two values on the stack.
+
+**Example:**
+```
+Bytecode: 0x6014600a01
+Breakdown:
+  6014 - PUSH1 0x14 (20 in decimal)
+  600a - PUSH1 0x0a (10 in decimal)
+  01   - ADD
+
+Result: 0x1e (30 in decimal)
+```
+
+From the test suite (vm.rs:417-435):
+```rust
+// 10 + 20 = 30 which is 1e in hex
+let bytecode = "6014600a01";
+assert_eq!(vm.stack.peek().unwrap(), "1e");
+
+// (10 + 20) + 32 = 62 which is 3e in hex
+let bytecode = "6020600a60140101";
+assert_eq!(vm.stack.peek().unwrap(), "3e");
+```
+
+## MUL (0x02)
+
+Multiplies the top two values on the stack.
+
+**Example:**
+```
+Bytecode: 0x6014600a02
+Breakdown:
+  6014 - PUSH1 0x14 (20 in decimal)
+  600a - PUSH1 0x0a (10 in decimal)
+  02   - MUL
+
+Result: 0xc8 (200 in decimal)
+```
+
+From the test suite (vm.rs:438-456):
+```rust
+// 10 * 20 = 200 which is c8 in hex
+let bytecode = "6014600a02";
+assert_eq!(vm.stack.peek().unwrap(), "c8");
+
+// (10 * 20) * 2 = 400 which is 190 in hex
+let bytecode = "60026014600a0202";
+assert_eq!(vm.stack.peek().unwrap(), "190");
+```
+
+## SUB (0x03)
+
+Subtracts the top stack value from the second value.
+
+**Example:**
+```
+Bytecode: 0x600a601403
+Breakdown:
+  600a - PUSH1 0x0a (10 in decimal)
+  6014 - PUSH1 0x14 (20 in decimal)
+  03   - SUB
+
+Result: 0x0a (20 - 10 = 10 in decimal)
+```
+
+From the test suite (vm.rs:458-469):
+```rust
+// 20 - 10 = 10 which is a in hex
+let bytecode = "600a601403";
+assert_eq!(vm.stack.peek().unwrap(), "a");
+```
+
+## DIV (0x04)
+
+Performs integer division, rounding down toward zero.
+
+**Example:**
+```
+Bytecode: 0x6002600504
+Breakdown:
+  6002 - PUSH1 0x02 (2 in decimal)
+  6005 - PUSH1 0x05 (5 in decimal)
+  04   - DIV
+
+Result: 0x02 (5 / 2 = 2, rounded down)
+```
+
+From the test suite (vm.rs:471-482):
+```rust
+// 5 / 2 = rounded as 2
+let bytecode = "6002600504";
+assert_eq!(vm.stack.peek().unwrap(), "2");
+```
+
+## MOD (0x06)
+
+Returns the remainder after division.
+
+**Example:**
+```
+Bytecode: 0x6002600506
+Breakdown:
+  6002 - PUSH1 0x02 (2 in decimal)
+  6005 - PUSH1 0x05 (5 in decimal)
+  06   - MOD
+
+Result: 0x01 (5 % 2 = 1)
+```
+
+From the test suite (vm.rs:484-495):
+```rust
+// 5 % 2 = 1
+let bytecode = "6002600506";
+assert_eq!(vm.stack.peek().unwrap(), "1");
+```
+
+## EXP (0x0a)
+
+Raises the first value to the power of the second value.
+
+**Example:**
+```
+Bytecode: 0x600260050a
+Breakdown:
+  6002 - PUSH1 0x02 (2 in decimal)
+  6005 - PUSH1 0x05 (5 in decimal)
+  0a   - EXP
+
+Result: 0x19 (5^2 = 25 in decimal)
+```
+
+From the test suite (vm.rs:497-508):
+```rust
+// 5**2 = 25 which is 19 in hex
+let bytecode = "600260050a";
+assert_eq!(vm.stack.peek().unwrap(), "19");
+```
+
+## Implementation
+
+The arithmetic operations are implemented in `src/vm.rs:146-187`. All operations:
+
+1. Pop two values from the stack (except for unary operations)
+2. Perform the operation using Rust's operator overloading on Bytes32
+3. Push the result back onto the stack
+
+```rust
+InstructionType::ADD => {
+    let (item_1, item_2) = *build_initials()?.downcast::<(Bytes32, Bytes32)>().unwrap();
+    let result = item_1 + item_2;
+    self.stack.push(result.parse_and_trim()?)?
+}
+```
+
+<Note>
+All arithmetic operations use 256-bit unsigned integers. Overflow wraps around (modulo 2^256).
+</Note>

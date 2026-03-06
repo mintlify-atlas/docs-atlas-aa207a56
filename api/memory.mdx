@@ -1,0 +1,170 @@
+---
+title: "Memory"
+description: "EVM memory implementation with dynamic heap allocation"
+---
+
+The `Memory` struct provides a dynamically expanding heap for EVM memory operations. It automatically extends when data is stored beyond the current size.
+
+## Structure
+
+```rust
+pub struct Memory {
+    pub heap: Vec<u8>,
+}
+```
+
+## Methods
+
+### new()
+
+Creates a new empty memory instance.
+
+<ResponseField name="Memory" type="Memory">
+  Returns a new memory instance with an empty heap
+</ResponseField>
+
+```rust
+let memory = Memory::new();
+assert_eq!(memory.heap.is_empty(), true);
+```
+
+### mstore()
+
+Stores 32 bytes of data at the specified memory location.
+
+**Note**: This method is marked as `unsafe` because it uses raw pointer operations.
+
+<ParamField path="location" type="Bytes32" required>
+  The memory location to store the data
+</ParamField>
+
+<ParamField path="data" type="Bytes32" required>
+  The 32-byte value to store
+</ParamField>
+
+```rust
+let mut memory = Memory::new();
+let data = "ff1122".parse::<Bytes32>()?;
+let location = Bytes32::from(0);
+
+unsafe {
+    memory.mstore(location, data);
+}
+```
+
+### mload()
+
+Loads 32 bytes of data from the specified memory location.
+
+**Note**: This method is marked as `unsafe` because it uses raw pointer operations.
+
+<ParamField path="location" type="Bytes32" required>
+  The memory location to load from
+</ParamField>
+
+<ResponseField name="Bytes32" type="Bytes32">
+  Returns the 32-byte value at the specified location
+</ResponseField>
+
+```rust
+let mut memory = Memory::new();
+let data = "ff1122".parse::<Bytes32>()?;
+let location = Bytes32::from(0);
+
+let result: Bytes32;
+unsafe {
+    memory.mstore(location, data);
+    result = memory.mload(location);
+}
+assert_eq!(result, data);
+```
+
+### msize()
+
+Returns the current size of the memory heap in bytes.
+
+<ResponseField name="usize" type="usize">
+  The current heap size in bytes
+</ResponseField>
+
+```rust
+let mut memory = Memory::new();
+assert_eq!(memory.msize(), 0);
+
+memory.extend(32);
+assert_eq!(memory.msize(), 32);
+```
+
+## Usage Examples
+
+### Aligned Memory Storage
+
+Storing data at memory locations that are multiples of 32:
+
+```rust
+let mut memory = Memory::new();
+let data = "ff1122".parse::<Bytes32>()?;
+let location = Bytes32::from(0);
+
+unsafe {
+    memory.mstore(location, data);
+    let result = memory.mload(location);
+    assert_eq!(result, data);
+}
+```
+
+### Unaligned Memory Storage
+
+The memory automatically extends to accommodate unaligned locations:
+
+```rust
+let mut memory = Memory::new();
+let data = "ff1122".parse::<Bytes32>()?;
+let location = Bytes32::from(37); // Not a multiple of 32
+let expected_size = 37 + 32; // 69 bytes
+
+unsafe {
+    memory.mstore(location, data);
+    let result = memory.mload(location);
+    assert_eq!(result, data);
+}
+assert_eq!(memory.msize(), expected_size);
+```
+
+### Read-Only Memory Access
+
+The `load_only()` method provides read access without automatic extension:
+
+```rust
+let mut memory = Memory::new();
+let data = "ff1122".parse::<Bytes32>()?;
+let location = Bytes32::from(0);
+
+unsafe {
+    memory.mstore(location, data);
+    let result = memory.load_only(location);
+    assert_eq!(result, data);
+}
+```
+
+## Memory Expansion
+
+The memory heap automatically expands when:
+- Storing data beyond the current heap size
+- Loading data beyond the current heap size
+
+Expansion rules:
+- If `location % 32 == 0`: Extends by exactly `(location + 32) - heap.len()`
+- Otherwise: Extends by `(location + 32 + (location % 32)) - heap.len()`
+
+## Safety Considerations
+
+All memory operations (`mstore`, `mload`, `load_only`) are marked as `unsafe` because they:
+- Use raw pointer arithmetic
+- Directly manipulate memory via pointers
+- Assume 32-byte alignment for data
+
+When using these methods, ensure:
+- The heap has been properly extended
+- Location values are valid
+- No concurrent access to the same memory location

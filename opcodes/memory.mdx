@@ -1,0 +1,192 @@
+---
+title: "Memory Opcodes"
+description: "Volatile memory operations in Cubipods"
+---
+
+Memory opcodes provide access to the EVM's volatile memory. Memory is a byte-addressable linear space that exists only during contract execution and is cleared between calls.
+
+## Supported Opcodes
+
+| Opcode | Hex | Stack Input | Stack Output | Description |
+|--------|-----|-------------|--------------|-------------|
+| MLOAD | 0x51 | offset | value | Load 32 bytes from memory |
+| MSTORE | 0x52 | offset, value | - | Store 32 bytes to memory |
+
+## Memory Model
+
+EVM memory has these characteristics:
+
+- **Linear byte array**: Memory is addressed from 0 to 2^256 - 1
+- **Word-aligned operations**: MLOAD and MSTORE work with 32-byte words
+- **Volatile**: Memory is cleared after execution completes
+- **Expandable**: Memory expands automatically when accessed
+- **Initially zero**: All memory locations start as zero
+
+```
+Memory Layout (example):
+
+Offset   Value (32 bytes each)
+0x00     0x0000...0000
+0x20     0x0000...0000
+0x40     0x0000...0020  ← Free memory pointer
+0x60     0x0000...0000
+...
+```
+
+## MSTORE (0x52)
+
+Stores a 32-byte value to memory at the specified offset.
+
+**Stack Input:**
+- `offset`: Memory address to write to
+- `value`: 32-byte value to store
+
+**Example:**
+```
+Bytecode: 0x6020608052
+Breakdown:
+  6020 - PUSH1 0x20  (value: 32 in decimal)  [stack: 0x20]
+  6080 - PUSH1 0x80  (offset: 128)           [stack: 0x80, 0x20]
+  52   - MSTORE                              [stack: empty]
+
+Result: Memory at 0x80 contains 0x0000...0020
+```
+
+From the test suite (vm.rs:665-684):
+```rust
+// Pushes 0x20(32) and 0x80(memory location), saves to memory
+let bytecode = "6020608052";
+let data = vm.memory.mload("80".parse::<Bytes32>()?);
+assert_eq!(data as u128, 32);
+```
+
+## MLOAD (0x51)
+
+Loads a 32-byte value from memory at the specified offset.
+
+**Stack Input:**
+- `offset`: Memory address to read from
+
+**Stack Output:**
+- `value`: 32-byte value from memory
+
+**Example:**
+```
+Bytecode: 0x602060805260805160005260206000f3
+Breakdown:
+  6020608052 - Store 0x20 at memory 0x80
+  6080 - PUSH1 0x80  (offset to load from)
+  51   - MLOAD       (loads from 0x80)
+
+Result: Stack contains 0x20
+```
+
+## Combined Example
+
+This example demonstrates storing and loading from memory:
+
+```
+Bytecode: 0x60206040526002600155
+Breakdown:
+  6020 - PUSH1 0x20    [stack: 0x20]
+  6040 - PUSH1 0x40    [stack: 0x40, 0x20]
+  52   - MSTORE        [stack: empty]
+         → Stores 0x20 at memory offset 0x40
+  
+  6002 - PUSH1 0x02    [stack: 0x02]
+  6001 - PUSH1 0x01    [stack: 0x01, 0x02]
+  55   - SSTORE        [stack: empty]
+         → Stores 0x02 at storage slot 0x01
+
+Memory after execution:
+  0x40: 0x0000000000000000000000000000000000000000000000000000000000000020
+
+Storage after execution:
+  0x01: 0x0000000000000000000000000000000000000000000000000000000000000002
+```
+
+From the test suite (integration_test.rs:22-48):
+```rust
+let mut vm = common::setup(["cubipods", "--bytecode", "0x60206040526002600155"])?;
+vm.run()?;
+
+let data = vm.memory.load_only("40".parse::<Bytes32>()?).to_string();
+assert_eq!(
+    data,
+    "0000000000000000000000000000000000000000000000000000000000000020"
+);
+
+let data = vm.storage.sload("01".parse::<Bytes32>()?).unwrap().to_string();
+assert_eq!(
+    data,
+    "0000000000000000000000000000000000000000000000000000000000000002"
+);
+```
+
+## Implementation
+
+Memory operations are implemented in `src/vm.rs:281-296`:
+
+```rust
+InstructionType::MLOAD => {
+    let item_1 = *build_initials()?.downcast::<Bytes32>().unwrap();
+    
+    let result;
+    unsafe {
+        result = self.memory.mload(item_1);
+    }
+    let result: String = result.try_into()?;
+    
+    self.stack.push(result)?
+}
+
+InstructionType::MSTORE => unsafe {
+    let (item_1, item_2) = *build_initials()?.downcast::<(Bytes32, Bytes32)>().unwrap();
+    self.memory.mstore(item_1, item_2);
+}
+```
+
+## Memory vs Storage
+
+| Feature | Memory (MLOAD/MSTORE) | Storage (SLOAD/SSTORE) |
+|---------|----------------------|------------------------|
+| **Persistence** | Volatile (cleared after execution) | Persistent (saved on-chain) |
+| **Cost** | Cheaper | More expensive |
+| **Use Case** | Temporary calculations | Long-term state |
+| **Size** | Expandable, unlimited | 2^256 slots |
+
+## Common Memory Patterns
+
+**Free memory pointer (0x40):**
+```
+6040     PUSH1 0x40
+51       MLOAD         // Load free memory pointer
+```
+
+Solidity uses 0x40 to track the next available memory location.
+
+**Temporary storage:**
+```
+6020     PUSH1 0x20    // value
+6080     PUSH1 0x80    // offset
+52       MSTORE        // store
+6080     PUSH1 0x80
+51       MLOAD         // load back
+```
+
+## Memory Expansion
+
+<Note>
+Memory automatically expands when you access addresses beyond the current size. The EVM allocates memory in 32-byte words.
+</Note>
+
+<Warning>
+In a real EVM, memory expansion has a quadratic cost. Accessing very high memory addresses can be extremely expensive.
+</Warning>
+
+## Best Practices
+
+1. **Use sequential addresses**: Keep memory usage organized
+2. **Respect the free memory pointer**: Start allocations at 0x80 or higher
+3. **32-byte alignment**: MSTORE and MLOAD work with 32-byte words
+4. **Clear when needed**: Overwrite sensitive data if necessary

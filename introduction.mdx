@@ -1,0 +1,88 @@
+---
+title: "Introduction"
+description: "A minimal Ethereum Virtual Machine (EVM) implementation in Rust"
+---
+
+## What is Cubipods?
+
+Cubipods is a minimal Ethereum Virtual Machine (EVM) written in Rust. It provides a lightweight and efficient platform for running EVM bytecode, making it ideal for learning how the EVM works, testing bytecode execution, and understanding low-level Ethereum operations.
+
+Unlike full EVM implementations that handle transactions, state management, and networking, Cubipods focuses solely on bytecode execution. This makes it an excellent educational tool and a practical utility for developers who need to test and debug EVM opcodes.
+
+## Why Cubipods?
+
+Cubipods solves several key challenges:
+
+<CardGroup cols={2}>
+  <Card title="Educational" icon="graduation-cap">
+    Learn how the EVM works by executing bytecode directly and observing stack, memory, and storage states
+  </Card>
+  <Card title="Debugging" icon="bug">
+    Test and debug EVM bytecode in isolation without deploying to a full blockchain environment
+  </Card>
+  <Card title="Lightweight" icon="feather">
+    Minimal implementation focused on core EVM functionality without the overhead of a full node
+  </Card>
+  <Card title="Transparent" icon="eye">
+    Verbose mode provides detailed execution history, showing exactly how opcodes modify state
+  </Card>
+</CardGroup>
+
+## Key Features
+
+Cubipods implements the essential components of the EVM:
+
+- **Lexical Analysis**: Tokenizes bytecode and analyzes the included opcodes
+- **Stack Management**: Supports standard stack operations (PUSH, POP, DUP, SWAP) enabling proper opcode execution
+- **Memory Handling**: Implements MLOAD and MSTORE operations to replicate EVM memory behavior
+- **Storage Operations**: Manages SLOAD and SSTORE functionalities as per EVM standards
+- **Bytecode Execution**: Runs user-provided bytecode, processing EVM opcodes sequentially
+- **Verbose Output**: Provides detailed output including execution history and final state of stack, memory, and storage
+
+## Supported Opcodes
+
+Cubipods currently supports the following EVM opcodes:
+
+**Arithmetic & Logic**
+- `ADD`, `MUL`, `SUB`, `DIV`, `MOD`, `EXP`
+- `LT`, `GT`, `EQ`, `ISZERO`
+- `AND`, `OR`, `XOR`, `NOT`, `BYTE`
+
+**Stack Operations**
+- `POP`, `PUSH0` to `PUSH32`
+- `DUP1` to `DUP16`
+- `SWAP1` to `SWAP16`
+
+**Memory & Storage**
+- `MLOAD`, `MSTORE`
+- `SLOAD`, `SSTORE`
+
+**Other**
+- `STOP`, `KECCAK256`
+
+## Example Use Case
+
+Here's a simple example of what you can do with Cubipods:
+
+```bash
+# Execute bytecode that adds 2 + 3
+cubipods -b 6003600201
+```
+
+This bytecode:
+1. Pushes `0x03` onto the stack (`PUSH1 0x03`)
+2. Pushes `0x02` onto the stack (`PUSH1 0x02`) 
+3. Adds the top two stack items (`ADD`)
+
+The result `0x05` remains on the stack after execution.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install Cubipods using Cargo and verify your setup
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Execute your first bytecode and explore verbose mode
+  </Card>
+</CardGroup>

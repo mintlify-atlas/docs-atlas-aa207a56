@@ -1,0 +1,169 @@
+---
+title: "Stack"
+description: "EVM stack implementation with 1024 element limit"
+---
+
+The `Stack` struct implements the EVM stack with a maximum capacity of 1024 elements. It's implemented as a linked list for efficient push/pop operations.
+
+## Structure
+
+```rust
+pub struct Stack<T> {
+    pub head: Option<Box<StackNode<T>>>,
+    pub length: u16,
+}
+```
+
+## Constants
+
+- **STACK_SIZE_LIMIT**: 1024 elements (maximum stack depth)
+
+## Methods
+
+### new()
+
+Creates a new empty stack.
+
+<ResponseField name="Stack" type="Stack<T>">
+  Returns a new stack instance with length 0
+</ResponseField>
+
+```rust
+let stack: Stack<String> = Stack::new();
+assert_eq!(stack.length, 0);
+```
+
+### push()
+
+Pushes an item onto the top of the stack.
+
+<ParamField path="item" type="T" required>
+  The item to push onto the stack
+</ParamField>
+
+<ResponseField name="Result" type="Result<usize, StackError>">
+  Returns the index of the pushed item or StackError::StackOverflow if the stack is full
+</ResponseField>
+
+```rust
+let mut stack: Stack<String> = Stack::new();
+let index = stack.push("ff".to_string())?;
+assert_eq!(stack.peek(), Some(&"ff".to_string()));
+```
+
+### pop()
+
+Removes and returns the top item from the stack.
+
+<ResponseField name="Result" type="Result<(usize, T), StackError>">
+  Returns a tuple of (index, item) or StackError::StackUnderflow if the stack is empty
+</ResponseField>
+
+```rust
+let mut stack: Stack<String> = Stack::new();
+stack.push("ff".to_string())?;
+let (index, item) = stack.pop()?;
+assert_eq!(item, "ff");
+```
+
+### dup()
+
+Duplicates the item at the specified index onto the top of the stack.
+
+<ParamField path="index" type="usize" required>
+  The index from the top to duplicate (0 = top item, 1 = second item, etc.)
+</ParamField>
+
+<ResponseField name="Result" type="Result<(usize, T), StackError>">
+  Returns (duplicated_index, duplicated_value) or an error if index is out of bounds
+</ResponseField>
+
+```rust
+let mut stack: Stack<String> = Stack::new();
+stack.push("ff1".to_string())?;
+stack.push("ff2".to_string())?;
+
+// DUP1: Duplicate the top item
+let (index, value) = stack.dup(0)?;
+assert_eq!(value, "ff2");
+```
+
+### swap()
+
+Swaps the item at the specified index with the top item.
+
+**Note**: This method is marked as `unsafe` and should be used with caution.
+
+<ParamField path="index" type="usize" required>
+  The index to swap with the top (1 = swap top with second, 2 = swap top with third, etc.)
+</ParamField>
+
+<ResponseField name="Result" type="Result<([usize; 2], [T; 2]), StackError>">
+  Returns ([head_index, swapped_index], [head_item, swapped_item]) or an error
+</ResponseField>
+
+```rust
+let mut stack: Stack<String> = Stack::new();
+stack.push("ff1".to_string())?;
+stack.push("ff2".to_string())?;
+stack.push("ff3".to_string())?;
+
+unsafe {
+    // SWAP3: Swap top with 3rd item
+    let ([idx1, idx2], [item1, item2]) = stack.swap(2)?;
+    assert_eq!(item1, "ff3");
+    assert_eq!(item2, "ff1");
+}
+```
+
+### peek()
+
+Returns a reference to the top item without removing it.
+
+<ResponseField name="Option" type="Option<&T>">
+  Returns Some(&item) if the stack is not empty, None otherwise
+</ResponseField>
+
+```rust
+let mut stack: Stack<String> = Stack::new();
+stack.push("ff".to_string())?;
+assert_eq!(stack.peek(), Some(&"ff".to_string()));
+```
+
+### is_empty()
+
+Checks if the stack is empty.
+
+<ResponseField name="bool" type="bool">
+  Returns true if the stack has no elements
+</ResponseField>
+
+```rust
+let stack: Stack<String> = Stack::new();
+assert!(stack.is_empty());
+```
+
+## Error Handling
+
+The stack can return the following errors:
+
+- **StackOverflow**: Attempting to push when the stack has 1024 elements
+- **StackUnderflow**: Attempting to pop from an empty stack
+- **StackSizeExceeded**: Index out of bounds in dup() or swap()
+- **StackIsEmpty**: Attempting operations on an empty stack
+- **WrongIndex**: Using index 0 with swap() (invalid operation)
+
+## Example: Stack Overflow
+
+```rust
+let mut stack: Stack<String> = Stack::new();
+
+// Fill the stack to capacity
+for _ in 0..1024 {
+    stack.push("ff".to_string())?;
+}
+
+// This will fail with StackOverflow
+let result = stack.push("ff".to_string());
+assert!(matches!(result, Err(StackError::StackOverflow)));
+```

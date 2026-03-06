@@ -1,0 +1,107 @@
+---
+title: API Overview
+description: Understanding Cubipods as a library and what it exports
+---
+
+Cubipods can be used as a Rust library to embed EVM bytecode execution in your own applications. This page covers what's available in the library and when to use it.
+
+## Public API
+
+The library exports the following public modules and types from `src/lib.rs:1`:
+
+### Core Modules
+
+- `vm` - The virtual machine that executes EVM bytecode
+- `lexer` - Parses and tokenizes bytecode strings
+- `instruction` - EVM opcode definitions and parsing
+- `stack` - EVM stack implementation (1024 item limit)
+- `memory` - EVM memory heap implementation
+- `storage` - Persistent storage using HashMap
+
+### Utilities
+
+- `utils::bytes32` - 32-byte value type for EVM operations
+- `utils::errors` - Error types for stack, memory, and VM operations
+- `utils::history` - Execution history tracking (for verbose mode)
+- `utils::cli` - Command-line interface helpers
+
+### Re-exported Types
+
+For convenience, these types are re-exported at the crate root:
+
+```rust
+pub use instruction::Instruction;
+pub use lexer::Lexer;
+```
+
+## Key Types
+
+### `Vm` Struct
+
+The main entry point for bytecode execution, defined in `src/vm.rs:18`:
+
+```rust
+pub struct Vm<'a> {
+    pub stack: Stack<String>,
+    pub lexer: Lexer<'a>,
+    pub memory: Memory,
+    pub storage: Storage,
+    pub history: History,
+    pub verbose: bool,
+}
+```
+
+**Public Methods:**
+- `Vm::new(bytecode: &str, verbose: bool)` - Create a new VM instance from `src/vm.rs:29`
+- `vm.run()` - Execute the loaded bytecode from `src/vm.rs:37`
+
+### `Stack<T>` Struct
+
+A generic stack implementation with EVM's 1024 item limit from `src/stack.rs:8`:
+
+**Public Methods:**
+- `Stack::new()` - Create an empty stack
+- `push(item: T)` - Push an item onto the stack
+- `pop()` - Pop an item from the stack
+- `peek()` - View the top item without removing it
+- `dup(index: usize)` - Duplicate an item at a given index
+- `swap(index: usize)` - Swap an item with the top of the stack (unsafe)
+- `is_empty()` - Check if the stack is empty
+
+### `Memory` Struct
+
+EVM memory heap implementation from `src/memory.rs:4`:
+
+**Public Methods:**
+- `Memory::new()` - Create empty memory
+- `mload(location: Bytes32)` - Load 32 bytes from memory (unsafe)
+- `mstore(location: Bytes32, data: Bytes32)` - Store 32 bytes to memory (unsafe)
+- `msize()` - Get current memory size
+
+### `Storage` Struct
+
+Persistent storage using HashMap from `src/storage.rs:6`:
+
+**Public Methods:**
+- `Storage::new()` - Create empty storage
+- `sstore(slot: Bytes32, value: Bytes32)` - Store a value
+- `sload(slot: Bytes32)` - Load a value
+- `size()` - Get number of stored values
+- `is_empty()` - Check if storage is empty
+
+## Library vs CLI
+
+**Use the library when:**
+- You need to embed EVM execution in a Rust application
+- You want programmatic access to execution state (stack, memory, storage)
+- You need to test smart contract bytecode in your test suite
+- You want to build custom tooling around EVM bytecode
+
+**Use the CLI when:**
+- You want to quickly test bytecode snippets
+- You need verbose execution traces with `--verbose`
+- You prefer command-line interaction over programmatic control
+
+## Getting Started
+
+To start using Cubipods as a library, see the [Getting Started guide](/api/getting-started).

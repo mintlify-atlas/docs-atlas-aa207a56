@@ -1,0 +1,240 @@
+---
+title: "Stack Opcodes"
+description: "Stack manipulation operations in Cubipods"
+---
+
+Stack opcodes manipulate the EVM stack, which is the primary workspace for all operations. The stack holds up to 1024 256-bit values, with all operations happening at the top.
+
+## Supported Opcodes
+
+| Opcode | Hex Range | Description |
+|--------|-----------|-------------|
+| POP | 0x50 | Remove top item from stack |
+| PUSH0 | 0x5f | Push zero onto stack |
+| PUSH1-PUSH32 | 0x60-0x7f | Push 1-32 bytes onto stack |
+| DUP1-DUP16 | 0x80-0x8f | Duplicate Nth stack item |
+| SWAP1-SWAP16 | 0x90-0x9f | Swap top with Nth item |
+
+## Understanding the Stack
+
+The EVM stack operates as a Last-In-First-Out (LIFO) data structure:
+
+```
+Top of stack (index 0)
+  ↓
+┌─────────────┐
+│    0x05     │  ← Most recent value
+├─────────────┤
+│    0x0a     │
+├─────────────┤
+│    0x14     │  ← Oldest value
+└─────────────┘
+```
+
+## POP (0x50)
+
+Removes the top item from the stack.
+
+**Example:**
+```
+Bytecode: 0x6001600250
+Breakdown:
+  6001 - PUSH1 0x01  [stack: 0x01]
+  6002 - PUSH1 0x02  [stack: 0x02, 0x01]
+  50   - POP         [stack: 0x01]
+
+Result: Stack contains only 0x01
+```
+
+From the test suite (vm.rs:651-663):
+```rust
+// Pushes 1 and 2 to stack in order, then pops top item
+let bytecode = "6001600250";
+assert_eq!(vm.stack.peek().unwrap(), "01");
+```
+
+## PUSH (0x5f-0x7f)
+
+Pushes 0-32 bytes onto the stack. The opcode byte determines how many following bytes to read.
+
+| Opcode | Hex | Bytes Pushed |
+|--------|-----|-------------|
+| PUSH0 | 0x5f | 0 (pushes 0) |
+| PUSH1 | 0x60 | 1 |
+| PUSH2 | 0x61 | 2 |
+| ... | ... | ... |
+| PUSH32 | 0x7f | 32 |
+
+**Example - PUSH1:**
+```
+Bytecode: 0x6014
+Breakdown:
+  60 - PUSH1 (push 1 byte)
+  14 - The byte to push (0x14 = 20 decimal)
+
+Result: Stack contains 0x14
+```
+
+**Example - PUSH11:**
+```
+Bytecode: 0x6b010101010101010101010101
+Breakdown:
+  6b - PUSH11 (push 11 bytes)
+  010101010101010101010101 - The 11 bytes to push
+
+Result: Stack contains 0x010101010101010101010101
+```
+
+From the test suite (vm.rs:704-715):
+```rust
+// Pushes 12 bytes of 01
+let bytecode = "6b010101010101010101010101";
+assert_eq!(vm.stack.peek().unwrap(), "010101010101010101010101");
+```
+
+<Note>
+PUSH0 (0x5f) is a special case that pushes zero without reading any following bytes.
+</Note>
+
+## DUP (0x80-0x8f)
+
+Duplicates the Nth stack item to the top.
+
+| Opcode | Hex | Duplicates |
+|--------|-----|------------|
+| DUP1 | 0x80 | Top item (1st) |
+| DUP2 | 0x81 | 2nd item |
+| ... | ... | ... |
+| DUP16 | 0x8f | 16th item |
+
+**Example - DUP1:**
+```
+Bytecode: 0x600180
+Breakdown:
+  6001 - PUSH1 0x01  [stack: 0x01]
+  80   - DUP1        [stack: 0x01, 0x01]
+
+Result: Stack contains two copies of 0x01
+```
+
+**Example - DUP3:**
+```
+Bytecode: 0x60016002600382
+Breakdown:
+  6001 - PUSH1 0x01  [stack: 0x01]
+  6002 - PUSH1 0x02  [stack: 0x02, 0x01]
+  6003 - PUSH1 0x03  [stack: 0x03, 0x02, 0x01]
+  82   - DUP3        [stack: 0x01, 0x03, 0x02, 0x01]
+
+Result: The 3rd item (0x01) is duplicated to top
+```
+
+From the test suite (vm.rs:717-728):
+```rust
+// Duplicates stack item
+let bytecode = "6b010101010101010101010101";
+assert_eq!(vm.stack.peek().unwrap(), "010101010101010101010101");
+```
+
+## SWAP (0x90-0x9f)
+
+Swaps the top stack item with the Nth item.
+
+| Opcode | Hex | Swaps With |
+|--------|-----|------------|
+| SWAP1 | 0x90 | 2nd item |
+| SWAP2 | 0x91 | 3rd item |
+| ... | ... | ... |
+| SWAP16 | 0x9f | 17th item |
+
+**Example - SWAP1:**
+```
+Bytecode: 0x6001600290
+Breakdown:
+  6001 - PUSH1 0x01  [stack: 0x01]
+  6002 - PUSH1 0x02  [stack: 0x02, 0x01]
+  90   - SWAP1       [stack: 0x01, 0x02]
+
+Result: Top two items are swapped
+```
+
+**Example - SWAP2:**
+```
+Bytecode: 0x60016002600391
+Breakdown:
+  6001 - PUSH1 0x01  [stack: 0x01]
+  6002 - PUSH1 0x02  [stack: 0x02, 0x01]
+  6003 - PUSH1 0x03  [stack: 0x03, 0x02, 0x01]
+  91   - SWAP2       [stack: 0x01, 0x02, 0x03]
+
+Result: 1st and 3rd items are swapped
+```
+
+From the test suite (vm.rs:730-743):
+```rust
+// Swaps 3rd item with 1st item in the stack
+// Stack before swap: [1, 2, 3]
+// Stack after swap:  [3, 2, 1]
+let bytecode = "60016002600391";
+assert_eq!(vm.stack.peek().unwrap(), "01");
+```
+
+## Implementation
+
+Stack operations are implemented in `src/vm.rs:312-343`:
+
+```rust
+InstructionType::PUSH(size) => {
+    let mut counter = 0;
+    let mut data = "".to_string();
+    while counter < size {
+        data += &self.lexer.next_byte()?;
+        counter += 1;
+    }
+    let index = self.stack.push(data.clone())?;
+}
+
+InstructionType::DUP(size) => {
+    let (index, item) = self.stack.dup(size as usize)?;
+}
+
+InstructionType::SWAP(size) => {
+    let ([index_1, index_2], [item_1, item_2]) = 
+        self.stack.swap(size as usize)?;
+}
+```
+
+## Stack Size Limits
+
+<Warning>
+- Maximum stack depth: 1024 items
+- PUSH supports 0-32 bytes (PUSH0 through PUSH32)
+- DUP supports positions 1-16 (DUP1 through DUP16)
+- SWAP supports positions 1-16 (SWAP1 through SWAP16)
+
+Operations beyond these limits will cause an error.
+</Warning>
+
+## Common Patterns
+
+**Loading constants:**
+```
+6001       PUSH1 1
+6002       PUSH1 2
+```
+
+**Reordering for operations:**
+```
+6001       PUSH1 1   [1]
+6002       PUSH1 2   [2, 1]
+90         SWAP1     [1, 2]
+01         ADD       [3]
+```
+
+**Saving intermediate values:**
+```
+6005       PUSH1 5   [5]
+80         DUP1      [5, 5]
+80         DUP1      [5, 5, 5]
+0202       MUL MUL   [125]  // 5 * 5 * 5
+```

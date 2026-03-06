@@ -1,0 +1,145 @@
+---
+title: "Installation"
+description: "Install and set up Cubipods on your system"
+---
+
+## Prerequisites
+
+Before installing Cubipods, ensure you have:
+
+- **Rust** (version 1.56 or later)
+- **Cargo** (Rust's package manager, included with Rust)
+
+<Note>
+If you don't have Rust installed, visit [rustup.rs](https://rustup.rs) to install it.
+</Note>
+
+## Installation Steps
+
+<Steps>
+  <Step title="Install Cubipods via Cargo">
+    Run the following command to install Cubipods from crates.io:
+
+    ```bash
+    cargo install cubipods
+    ```
+
+    This will download, compile, and install the `cubipods` binary to your Cargo bin directory (typically `~/.cargo/bin/`).
+
+    <Tip>
+    The installation may take a few minutes as Cargo compiles the project and its dependencies.
+    </Tip>
+  </Step>
+
+  <Step title="Verify Installation">
+    Confirm that Cubipods is installed correctly by checking the version:
+
+    ```bash
+    cubipods --version
+    ```
+
+    You should see output similar to:
+
+    ```
+    cubipods 0.1.1
+    ```
+  </Step>
+
+  <Step title="Test Basic Functionality">
+    Run a simple test to ensure everything is working:
+
+    ```bash
+    cubipods --bytecode 6001
+    ```
+
+    This executes the `PUSH1 0x01` opcode. If successful, Cubipods will execute without errors.
+
+    <Note>
+    Without verbose mode, Cubipods executes silently. To see execution details, add the `-v` flag (covered in the [Quickstart](/quickstart)).
+    </Note>
+  </Step>
+</Steps>
+
+## Installation Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Command not found">
+    If you get a "command not found" error, ensure that `~/.cargo/bin` is in your system's PATH:
+
+    ```bash
+    # Add to ~/.bashrc or ~/.zshrc
+    export PATH="$HOME/.cargo/bin:$PATH"
+    ```
+
+    Then reload your shell configuration:
+
+    ```bash
+    source ~/.bashrc  # or source ~/.zshrc
+    ```
+  </Accordion>
+
+  <Accordion title="Compilation errors">
+    If you encounter compilation errors during installation:
+
+    1. Update Rust to the latest stable version:
+       ```bash
+       rustup update stable
+       ```
+
+    2. Try the installation again:
+       ```bash
+       cargo install cubipods
+       ```
+  </Accordion>
+
+  <Accordion title="Permission denied">
+    If you encounter permission errors:
+
+    - Ensure you have write permissions to the Cargo bin directory
+    - Avoid using `sudo` with Cargo commands, as this can cause permission issues
+    - Check that your Rust installation is user-local (not system-wide)
+  </Accordion>
+</AccordionGroup>
+
+## Dependencies
+
+Cubipods automatically installs the following dependencies:
+
+- **clap** (v4.5.16) - Command-line argument parsing
+- **tiny-keccak** (v2.0.2) - Cryptographic hashing for the KECCAK256 opcode
+- **hex** (v0.4.3) - Hexadecimal encoding and decoding
+
+<Note>
+All dependencies are managed automatically by Cargo during installation.
+</Note>
+
+## Building from Source
+
+If you prefer to build from source:
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/icanvardar/cubipods.git
+    cd cubipods
+    ```
+  </Step>
+
+  <Step title="Build the project">
+    ```bash
+    cargo build --release
+    ```
+  </Step>
+
+  <Step title="Run the binary">
+    ```bash
+    ./target/release/cubipods --bytecode 6001
+    ```
+  </Step>
+</Steps>
+
+## Next Steps
+
+<Card title="Quickstart" icon="rocket" href="/quickstart">
+  Learn how to execute your first bytecode and explore Cubipods features
+</Card>

@@ -1,0 +1,231 @@
+---
+title: "Storage Opcodes"
+description: "Persistent storage operations in Cubipods"
+---
+
+Storage opcodes provide access to the EVM's persistent storage. Unlike memory, storage is saved on-chain and persists between contract calls and transactions.
+
+## Supported Opcodes
+
+| Opcode | Hex | Stack Input | Stack Output | Description |
+|--------|-----|-------------|--------------|-------------|
+| SLOAD | 0x54 | key | value | Load value from storage |
+| SSTORE | 0x55 | key, value | - | Store value to storage |
+
+## Storage Model
+
+EVM storage has these characteristics:
+
+- **Key-value store**: Each contract has 2^256 storage slots
+- **Persistent**: Data survives contract execution and is saved on-chain
+- **Initially zero**: All slots start with value 0
+- **Word-sized**: Each slot holds a 32-byte (256-bit) value
+- **Expensive**: Storage operations are costly compared to memory
+
+```
+Storage Layout (example):
+
+Slot     Value (32 bytes each)
+0x00     0x0000...0000
+0x01     0x6865...6c6f  ← "hello" stored here
+0x02     0x0000...002a  ← Value 42
+...
+```
+
+## SSTORE (0x55)
+
+Stores a 32-byte value to a storage slot.
+
+**Stack Input:**
+- `key`: Storage slot to write to
+- `value`: 32-byte value to store
+
+**Example:**
+```
+Bytecode: 0x6002600155
+Breakdown:
+  6002 - PUSH1 0x02   (value: 2)        [stack: 0x02]
+  6001 - PUSH1 0x01   (slot: 1)         [stack: 0x01, 0x02]
+  55   - SSTORE                          [stack: empty]
+
+Result: Storage slot 0x01 contains 0x02
+```
+
+**Example with string data:**
+```
+Bytecode: 0x6468656c6c6f600155
+Breakdown:
+  64 - PUSH5
+  68656c6c6f - "hello" in hex
+  6001 - PUSH1 0x01   (slot: 1)
+  55   - SSTORE
+
+Result: Storage slot 0x01 contains 0x68656c6c6f ("hello")
+```
+
+From the test suite (vm.rs:686-702):
+```rust
+// Saves word "hello" in the slot of 1
+let data = "68656c6c6f";
+let bytecode = format!("64{data}600155");
+
+let result = vm.storage.sload("01".parse::<Bytes32>()?);
+assert_eq!(data, result.unwrap().parse_and_trim()?);
+```
+
+## SLOAD (0x54)
+
+Loads a 32-byte value from a storage slot.
+
+**Stack Input:**
+- `key`: Storage slot to read from
+
+**Stack Output:**
+- `value`: 32-byte value from storage
+
+**Example:**
+```
+Bytecode: 0x6468656c6c6f600155600154
+Breakdown:
+  6468656c6c6f600155 - Store "hello" at slot 1
+  6001 - PUSH1 0x01   (slot to load from)
+  54   - SLOAD         (loads from slot 1)
+
+Result: Stack contains 0x68656c6c6f ("hello")
+```
+
+## Combined Example
+
+This example shows storing and loading in one operation:
+
+```
+Bytecode: 0x60206040526002600155
+Breakdown:
+  6020 - PUSH1 0x20         [stack: 0x20]
+  6040 - PUSH1 0x40         [stack: 0x40, 0x20]
+  52   - MSTORE              [stack: empty]
+         → Stores 0x20 to memory at 0x40
+  
+  6002 - PUSH1 0x02         [stack: 0x02]
+  6001 - PUSH1 0x01         [stack: 0x01, 0x02]
+  55   - SSTORE              [stack: empty]
+         → Stores 0x02 to storage slot 0x01
+
+Storage after execution:
+  Slot 0x01: 0x0000...0002
+```
+
+From the test suite (integration_test.rs:22-48):
+```rust
+let mut vm = common::setup(["cubipods", "--bytecode", "0x60206040526002600155"])?;
+vm.run()?;
+
+assert_eq!(vm.stack.is_empty(), true);
+
+let data = vm.storage.sload("01".parse::<Bytes32>()?).unwrap().to_string();
+assert_eq!(
+    data,
+    "0000000000000000000000000000000000000000000000000000000000000002"
+);
+```
+
+## Implementation
+
+Storage operations are implemented in `src/vm.rs:298-310`:
+
+```rust
+InstructionType::SLOAD => {
+    let item_1 = *build_initials()?.downcast::<Bytes32>().unwrap();
+    
+    let result = self.storage.sload(item_1).unwrap();
+    let result: String = result.clone().to_string();
+    
+    self.stack.push(result)?
+}
+
+InstructionType::SSTORE => {
+    let (item_1, item_2) = *build_initials()?.downcast::<(Bytes32, Bytes32)>().unwrap();
+    self.storage.sstore(item_1, item_2);
+}
+```
+
+## Storage vs Memory
+
+| Feature | Storage (SLOAD/SSTORE) | Memory (MLOAD/MSTORE) |
+|---------|------------------------|------------------------|
+| **Persistence** | Persistent (saved on-chain) | Volatile (cleared after execution) |
+| **Cost** | Very expensive | Cheaper |
+| **Use Case** | Long-term state, contract data | Temporary calculations |
+| **Access** | 2^256 key-value slots | Linear byte array |
+| **Initial Value** | All zeros | All zeros |
+
+## Storage Patterns
+
+**Simple state variable:**
+```
+// Store balance at slot 0
+6064        PUSH1 100       // value: 100
+6000        PUSH1 0         // slot: 0
+55          SSTORE          // storage[0] = 100
+
+// Load balance
+6000        PUSH1 0         // slot: 0
+54          SLOAD           // load storage[0]
+```
+
+**Increment counter:**
+```
+6001        PUSH1 1         // slot 1
+54          SLOAD           // load current value
+6001        PUSH1 1         // increment by 1
+01          ADD             // add
+6001        PUSH1 1         // slot 1
+55          SSTORE          // store new value
+```
+
+## Common Storage Slots
+
+In Solidity, storage slots are assigned sequentially:
+
+- Slot 0: First state variable
+- Slot 1: Second state variable
+- Slot 2: Third state variable
+- etc.
+
+Complex types (mappings, arrays) use hash-based addressing.
+
+## Gas Considerations
+
+<Warning>
+In a real EVM, storage operations are expensive:
+
+- **SSTORE**: 20,000 gas (first write), 5,000 gas (updates)
+- **SLOAD**: 2,100 gas (warm), 200 gas (cold)
+- **Zero to non-zero**: Most expensive (20,000 gas)
+- **Non-zero to zero**: Gets gas refund (15,000 gas)
+
+Cubipods doesn't track gas, but be aware of these costs in real contracts.
+</Warning>
+
+## Best Practices
+
+1. **Minimize writes**: SSTORE is expensive
+2. **Batch updates**: Change storage in groups when possible
+3. **Pack data**: Use bit manipulation to store multiple values in one slot
+4. **Clear unused data**: Set to zero for gas refunds in real EVM
+5. **Use memory for temps**: Don't store temporary values in storage
+
+## Example: Counter Contract
+
+```
+// Initialize counter to 0 (slot 0)
+6000 6000 55    PUSH1 0, PUSH1 0, SSTORE
+
+// Increment counter
+6000 54         PUSH1 0, SLOAD           // Load current value
+6001 01         PUSH1 1, ADD             // Add 1
+6000 55         PUSH1 0, SSTORE          // Store back
+
+// Read counter
+6000 54         PUSH1 0, SLOAD           // Load current value
+```
