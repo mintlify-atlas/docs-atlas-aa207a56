@@ -1,0 +1,108 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "Cubipods",
+  "projectDescription": "A minimal Ethereum Virtual Machine (EVM) implemented in Rust for executing EVM bytecode.",
+  "theme": "aspen",
+  "primaryColor": "#242b2c",
+  "lightColor": "#040404",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "CLI Reference",
+            "pages": [
+              "cli/usage",
+              "cli/options",
+              "cli/examples"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/evm-basics",
+              "concepts/bytecode",
+              "concepts/execution-model"
+            ]
+          },
+          {
+            "group": "Opcodes",
+            "pages": [
+              "opcodes/overview",
+              "opcodes/arithmetic",
+              "opcodes/comparison",
+              "opcodes/bitwise",
+              "opcodes/stack",
+              "opcodes/memory",
+              "opcodes/storage",
+              "opcodes/crypto"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Library Usage",
+            "pages": [
+              "api/overview",
+              "api/getting-started"
+            ]
+          },
+          {
+            "group": "Core Types",
+            "pages": [
+              "api/vm",
+              "api/stack",
+              "api/memory",
+              "api/storage",
+              "api/lexer"
+            ]
+          },
+          {
+            "group": "Examples",
+            "pages": [
+              "api/examples"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Execute EVM bytecode from command line",
+    "Support for 40+ EVM opcodes",
+    "Stack management with 1024-element limit",
+    "Memory operations (MLOAD, MSTORE)",
+    "Storage operations (SLOAD, SSTORE)",
+    "Cryptographic operations (KECCAK256)",
+    "Verbose execution history and debugging",
+    "Programmatic API for library usage"
+  ],
+  "publicApiSurface": [
+    "cubipods -b <bytecode> [-v]",
+    "Vm::new(bytecode: &str, verbose: bool)",
+    "Vm::run()",
+    "Stack::push(item: T)",
+    "Stack::pop()",
+    "Stack::dup(index: usize)",
+    "Stack::swap(index: usize)",
+    "Memory::mload(location: Bytes32)",
+    "Memory::mstore(location: Bytes32, data: Bytes32)",
+    "Storage::sload(slot: Bytes32)",
+    "Storage::sstore(slot: Bytes32, value: Bytes32)",
+    "Lexer::new(bytecode: &str)",
+    "InstructionType enum"
+  ]
+}
